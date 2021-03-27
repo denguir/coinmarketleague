@@ -1,41 +1,32 @@
 from datetime import datetime, timedelta
 from abc import ABC, abstractmethod
 from binance.client import Client as BinanceClient
+from traderboard.models import TradingAccount, SnapshotAccount
 from Market import Market
-
 
 __PLATFORMS__ = ['Binance']
 
-
-class TradingAccount(ABC):
-    '''Abstract Trading account class to inherit from
+class TradingClient(ABC):
+    '''Abstract Trading client class to inherit from
      to integrate a trading account in a new exchange platform'''
 
     @staticmethod
-    def trading_from(platform, **kwargs):
-        assert(platform in __PLATFORMS__)
-        if platform == 'Binance':
-            return BinanceTradingAccount(**kwargs)
+    def trading_from(ta):
+        assert(ta.platform in __PLATFORMS__)
+        if ta.platform == 'Binance':
+            return BinanceTradingClient(ta)
 
     @abstractmethod
-    def __init__(self, api_key, api_secret):
-        self.api_key = api_key
-        self.api_secret = api_secret
-
-    @abstractmethod
-    def get_api_key(self) -> str:
-        pass
-    
-    @abstractmethod
-    def get_api_secret(self) -> str:
-        pass
+    def __init__(self, ta):
+        # ta: trading account record 
+        self.ta = ta
 
     @abstractmethod
     def get_balances(self) -> list:
         pass
 
     @abstractmethod
-    def get_balances_value(self, market: Market) -> float:
+    def get_balances_value(self, price_table: dict, base: str) -> float:
         pass
 
     @abstractmethod
@@ -66,22 +57,13 @@ class TradingAccount(ABC):
         return self.get_PnL(date_from, date_to, market)
 
 
-class BinanceTradingAccount(TradingAccount):
-    '''Trading account for Binance'''
+class BinanceTradingClient(TradingClient):
+    '''Trading client for Binance built from the trading accout
+        id of the user'''
 
-    def __init__(self, api_key, api_secret):
-        super().__init__(api_key, api_secret)
-        self.platform = 'Binance'
-        self.client = BinanceClient(self.api_key, self.api_secret)
-
-    def __str__(self):
-        return self.platform
-
-    def get_api_key(self):
-        return 0
-
-    def get_api_secret(self):
-        return 0
+    def __init__(self, ta):
+        super().__init__(ta)
+        self.client = BinanceClient(ta.api_key, ta.api_secret)
 
     def get_balances(self):
         info = self.client.get_account()
@@ -106,16 +88,16 @@ class BinanceTradingAccount(TradingAccount):
             btc_value += (balances[asset] * btc_price)
         return btc_value
 
-    def get_balances_value(self, market):
-        price_table = market.get_price_table()
+    def get_balances_value(self, price_table, base='BTC'):
+        base = base.upper()
         btc_value = self.get_balances_btc_value(price_table)
-        if market.base == 'BTC':
+        if base == 'BTC':
             market_price = 1.0
         else:
             try:
-                market_price = price_table['BTC' + market.base]
+                market_price = price_table['BTC' + base]
             except KeyError:
-                market_price = price_table[market.base + 'BTC']
+                market_price = price_table[base + 'BTC']
         market_value = btc_value * market_price
         return market_value
 
@@ -131,14 +113,5 @@ class BinanceTradingAccount(TradingAccount):
         info = self.client.get_withdraw_history(startTime=start, endTime=end, status=6)
         return info['withdrawList']
 
-    def get_PnL(self, date_from, date_to, market):
+    def get_PnL(self, balance_history, date_from, market):
         pass
-
-
-if __name__ == '__main__':
-    api_key = None
-    api_secret = None
-    ta = TradingAccount.trading_from('Binance', api_key=api_key, api_secret=api_secret)
-    market = Market.trading_from('Binance', base='BTC')
-    bal = ta.get_balances_value(market)
-    print(bal)

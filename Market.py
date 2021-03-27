@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 from abc import ABC, abstractmethod
 from binance.client import Client as BinanceClient
 
-__MARKETS__ = ['USDT', 'BTC']
 __PLATFORMS__ = ['Binance']
 
 class Market(ABC):
@@ -11,19 +10,15 @@ class Market(ABC):
     - base: base coin of comparison (BTC, USDT)'''
 
     @staticmethod
-    def trading_from(platform, **kwargs):
+    def trading_from(platform):
         assert(platform in __PLATFORMS__)
         if platform == 'Binance':
-            return BinanceMarket(**kwargs)
+            return BinanceMarket(platform)
 
     @abstractmethod
-    def __init__(self, base):
-        assert(base in __MARKETS__)
-        self.base = base
-    
-    def __str__(self):
-        return self.base
-
+    def __init__(self, platform):
+        self.platform = platform
+        
     @abstractmethod
     def to_timestamp(self, date: datetime) -> int:
         pass
@@ -36,8 +31,8 @@ class Market(ABC):
 class BinanceMarket(Market):
     '''Market info for Binance'''
     
-    def __init__(self, base):
-        super().__init__(base)
+    def __init__(self, platform):
+        super().__init__(platform)
         self.client = BinanceClient(None, None)
     
     def to_timestamp(self, date):
