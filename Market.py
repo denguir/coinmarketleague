@@ -34,8 +34,10 @@ class BinanceMarket(Market):
     def __init__(self, platform):
         super().__init__(platform)
         self.client = BinanceClient(None, None)
+        self.table = self.get_price_table()
     
     def to_timestamp(self, date):
+        # convert server time to UTC time, in ms
         ts = int(date.timestamp() * 1000 + self.client.timestamp_offset)
         return ts
 

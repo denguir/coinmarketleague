@@ -8,9 +8,9 @@ from django.dispatch import receiver
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     # store main stats about the user
-    daily_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=0)
-    weekly_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=0)
-    monthly_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=0)
+    daily_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
+    weekly_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
+    monthly_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
 
 
 class TradingAccount(models.Model):

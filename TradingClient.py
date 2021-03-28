@@ -26,7 +26,7 @@ class TradingClient(ABC):
         pass
 
     @abstractmethod
-    def get_balances_value(self, price_table: dict, base: str) -> float:
+    def get_value(self, balances: dict, market: Market, base: str) -> float:
         pass
 
     @abstractmethod
@@ -38,23 +38,8 @@ class TradingClient(ABC):
         pass
 
     @abstractmethod
-    def get_PnL(self, date_from: datetime, date_to: datetime, market: Market) -> float:
+    def get_PnL(self, snap_from: SnapshotAccount, snap_to: SnapshotAccount, market: Market, base: str) -> float:
         pass
-
-    def get_daily_PnL(self, market: Market) -> float:
-        date_from = datetime.today() - timedelta(days=1)
-        date_to = datetime.today()
-        return self.get_PnL(date_from, date_to, market)
-
-    def get_weekly_PnL(self, market: Market) -> float:
-        date_from = datetime.today() - timedelta(days=7)
-        date_to = datetime.today()
-        return self.get_PnL(date_from, date_to, market)
-
-    def get_monthly_PnL(self, market: Market) -> float:
-        date_from = datetime.today() - timedelta(days=31)
-        date_to = datetime.today()
-        return self.get_PnL(date_from, date_to, market)
 
 
 class BinanceTradingClient(TradingClient):
@@ -70,8 +55,23 @@ class BinanceTradingClient(TradingClient):
         balances = {bal['asset'] : float(bal['free']) + float(bal['locked']) for bal in info['balances']}
         return balances
 
-    def get_balances_btc_value(self, price_table):
-        balances = self.get_balances()
+    def get_deposits(self, date_from, date_to, market):
+        start = market.to_timestamp(date_from)
+        end = market.to_timestamp(date_to)
+        info = self.client.get_deposit_history(startTime=start, endTime=end, status=1)
+        deposits = {dep['asset'] : float(dep['amount']) for dep in info['depositList']}
+        return deposits
+
+    def get_withdrawals(self, date_from, date_to, market):
+        start = market.to_timestamp(date_from)
+        end = market.to_timestamp(date_to)
+        info = self.client.get_withdraw_history(startTime=start, endTime=end, status=6)
+        withdrawals = {widl['asset'] : float(widl['amount']) for widl in info['withdrawList']}
+        return withdrawals
+
+    def get_btc_value(self, balances, market):
+        # balances is a dict of the form {asset: amount}:
+        # could be balances, deposits, withdrawals
         btc_value = 0.0
         for asset in balances.keys():
             try:
@@ -79,39 +79,51 @@ class BinanceTradingClient(TradingClient):
                     if asset == 'BTC':
                         btc_price = 1.0
                     else:
-                        btc_price = price_table[asset + 'BTC']
+                        btc_price = market.table[asset + 'BTC']
                 except KeyError:
-                    btc_price = 1.0 / price_table['BTC' + asset]
+                    btc_price = 1.0 / market.table['BTC' + asset]
             except KeyError:
                 # asset not available on platform
                 btc_price = 0.0
             btc_value += (balances[asset] * btc_price)
         return btc_value
 
-    def get_balances_value(self, price_table, base='BTC'):
+    def get_value(self, balances, market, base='BTC'):
         base = base.upper()
-        btc_value = self.get_balances_btc_value(price_table)
+        btc_value = self.get_btc_value(balances, market)
         if base == 'BTC':
             market_price = 1.0
         else:
             try:
-                market_price = price_table['BTC' + base]
+                market_price = market.table['BTC' + base]
             except KeyError:
-                market_price = price_table[base + 'BTC']
+                market_price = market.table[base + 'BTC']
         market_value = btc_value * market_price
         return market_value
 
-    def get_deposits(self, date_from, date_to, market):
-        start = market.to_timestamp(date_from)
-        end = market.to_timestamp(date_to)
-        info = self.client.get_deposit_history(startTime=start, endTime=end, status=1)
-        return info['depositList']
+    def get_balances_value(self, market, base='BTC'):
+        balances = self.get_balances()
+        return self.get_value(balances, market, base)
 
-    def get_withdrawals(self, date_from, date_to, market):
-        start = market.to_timestamp(date_from)
-        end = market.to_timestamp(date_to)
-        info = self.client.get_withdraw_history(startTime=start, endTime=end, status=6)
-        return info['withdrawList']
+    def get_deposits_value(self, date_from, date_to, market, base='BTC'):
+        deposits = self.get_deposits(date_from, date_to, market)
+        return self.get_value(deposits, market, base)
+    
+    def get_withdrawals_value(self, date_from, date_to, market, base='BTC'):
+        withdrawals = self.get_withdrawals(date_from, date_to, market)
+        return self.get_value(withdrawals, market, base)
 
-    def get_PnL(self, balance_history, date_from, market):
-        pass
+    def get_PnL(self, snap_from, snap_to, market, base='USDT'):
+        if base == 'BTC':
+            balance_from = snap_from.balance_btc
+            balance_to = snap_to.balance_btc
+        else:
+            balance_from = snap_from.balance_usdt
+            balance_to = snap_to.balance_usdt
+        
+        deposits = self.get_deposits_value(snap_from.created_at, snap_to.created_at, market, base)
+        withdrawals = self.get_withdrawals_value(snap_from.created_at, snap_to.created_at, market, base)
+        pnl = (balance_to - deposits + withdrawals - balance_from) / balance_from
+        return pnl
+
+
