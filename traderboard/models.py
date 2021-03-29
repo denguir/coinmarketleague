@@ -7,6 +7,7 @@ from django.dispatch import receiver
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
+    email_confirmed = models.BooleanField(default=False)
     # store main stats about the user
     daily_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
     weekly_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
