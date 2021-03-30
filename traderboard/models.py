@@ -23,7 +23,9 @@ class TradingAccount(models.Model):
     platform = models.CharField(max_length=100,
                                 choices=TradingPlatform.choices,
                                 default=TradingPlatform.BINANCE)
-    api_key = fields.EncryptedCharField(max_length=64, default='')
+
+    # about encrypted fields: https://pypi.org/project/django-searchable-encrypted-fields/
+    api_key = models.CharField(max_length=64, default='')
     api_secret = fields.EncryptedCharField(max_length=64, default='')
 
 

@@ -45,7 +45,8 @@ class TradingClient(ABC):
 class BinanceTradingClient(TradingClient):
     '''Trading client for Binance built from the trading accout
         id of the user'''
-
+    # TODO:
+    # include sub accounts if possible
     def __init__(self, ta):
         super().__init__(ta)
         self.client = BinanceClient(ta.api_key, ta.api_secret)

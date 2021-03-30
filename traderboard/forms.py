@@ -2,14 +2,15 @@ from django import forms
 from django.contrib.auth.models import User
 from django.forms import fields
 from models import TradingAccount
+from TradingClient import TradingClient
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 
 __PLATFORMS__ = ['Binance']
 
 class RegistrationForm(UserCreationForm):
-    username = forms.CharField(max_length=30, required=True)
-    first_name = forms.CharField(max_length=30, required=False, help_text='Optional')
-    last_name = forms.CharField(max_length=30, required=False, help_text='Optional')
+    # username = forms.CharField(max_length=30, required=True)
+    # first_name = forms.CharField(max_length=30, required=False, help_text='Optional')
+    # last_name = forms.CharField(max_length=30, required=False, help_text='Optional')
     email = forms.EmailField(max_length=254, required=True, help_text='Enter a valid email address')
 
     class Meta:
@@ -55,9 +56,12 @@ class EditProfileForm(UserChangeForm):
 class AddTradingAccountForm(forms.ModelForm):
 
     platform = forms.ChoiceField(choices=list(enumerate(__PLATFORMS__)))
-    api_key = forms.CharField(max_length=64, required=True, help_text='Provide with READ ONLY API key')
-    api_secret = forms.CharField(max_length=64, required=True, help_text='Provide with READ ONLY API secret')
+    api_key = forms.CharField(min_length=64, max_length=64, required=True, help_text='Provide with READ ONLY API key')
+    api_secret = forms.CharField(min_length=64, max_length=64, required=True, help_text='Provide with READ ONLY API secret')
 
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super(AddTradingAccountForm, self).__init__(*args, **kwargs)
     class Meta:
         model = TradingAccount
         fields = (
@@ -69,6 +73,17 @@ class AddTradingAccountForm(forms.ModelForm):
     def clean_api_key(self):
         api_key = self.cleaned_data['api_key']
         api_secret = self.cleaned_data['api_secret']
-        # TODO:
-        # verify if api_key, api_secret pair is not already present in database using SearchField
-        # try to log on with api client and see if no errors 
+        platform = self.cleaned_data['platform']
+
+        if api_key and TradingAccount.objects.filter(platform__iexact=platform).filter(api_key__iexact=api_key).exists():
+            raise forms.ValidationError(u'This trading account is already linked to a user.')
+        
+        # check if api key, secret pair is valid 
+        ta = TradingAccount(user=self.user, platform=platform, api_key=api_key, api_secret=api_secret)
+        tc = TradingClient.trading_from(ta)
+        try:
+            tc.get_balances()
+        except:
+            raise forms.ValidationError(u'Invalid api key, api secret pair. Please verify again.')
+        return api_key
+
