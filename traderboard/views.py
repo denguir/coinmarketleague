@@ -1,19 +1,22 @@
 from traderboard.models import Profile
-from django.contrib.auth import login, authenticate, logout, update_session_auth_hash
+from traderboard.forms import EditProfileForm, RegistrationForm
+from django.contrib.auth import login, logout, update_session_auth_hash
 from django.contrib.auth.models import User
-from models import Profile
-from django.http import HttpResponse, HttpResponseRedirect
-from django.contrib.sites.shortcuts import get_current_site
-from django.shortcuts import render, redirect, render_to_response
+from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
 from django.template.context_processors import csrf
-from django.template.loader import render_to_string
-from django.utils.encoding import force_bytes
-from django.utils.http import urlsafe_base64_encode
-from django.contrib import messages
-from tokens import account_activation_token
-from forms import EditProfileForm, RegistrationForm
+from verify_email.email_handler import send_verification_email
+
+
+def login_view(request):
+    login(request)
+    return redirect('home') 
+
+
+def logout_view(request):
+    logout(request)
+    return redirect('home_out')
 
 
 def home_out(request):
@@ -31,8 +34,8 @@ def home(request):
     traders = enumerate(Profile.objects.order_by(order_by).reverse(), start=1)
     return render(request, 'index.html', {'traders': traders, 'user': user})
 
-# complete urls, template:
-# https://studygyaan.com/django/how-to-signup-user-and-send-confirmation-email-in-django     
+
+# see: https://pypi.org/project/Django-Verify-Email/
 def register(request):
     args = {}
     args.update(csrf(request))
@@ -40,33 +43,32 @@ def register(request):
         form = RegistrationForm(request.POST)
         args['form'] = form
         if form.is_valid():
-            user = form.save(commit=False)
-            user.is_active = False # Deactivate account till it is confirmed
-            user.save()
-
-            current_site = get_current_site(request)
-            subject = 'Activate your CoinMarketLeague account'
-            message = render_to_string('emails/account_activation_email.html', {
-                'user': user,
-                'domain': current_site.domain,
-                'uid': urlsafe_base64_encode(force_bytes(user.pk)),
-                'token': account_activation_token.make_token(user),
-            })
-            user.email_user(subject, message)
-
-            messages.success(request, ('Please confirm your email to complete registration.'))
+            inactive_user = send_verification_email(request, form)
             return redirect('home')
         else:
-            return render_to_response('accounts/register.html', args)
+            return render('accounts/register.html', args)
     else:
         args['form'] = RegistrationForm()
-        return render_to_response('accounts/register.html', args)
+        return render('accounts/register.html', args)
 
 
 @login_required
 def show_profile(request):
+    # show balance + balance percentage
     trader = User.objects.get(pk=request.user.id)
     args = {'trader': trader, 'overview': False}
+    return render(request, 'accounts/profile.html', args)
+
+
+@login_required
+def show_overview_profile(request, pk=None):
+    if pk:
+        trader = User.objects.get(pk=pk)
+    else:
+        return redirect('show_profile')
+    # show balance percentage
+
+    args = {'trader': trader, 'overview': True}
     return render(request, 'accounts/profile.html', args)
 
 
