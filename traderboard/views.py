@@ -1,22 +1,12 @@
 from traderboard.models import Profile
-from traderboard.forms import EditProfileForm, RegistrationForm
-from django.contrib.auth import login, logout, update_session_auth_hash
+from traderboard.forms import AddTradingAccountForm, EditProfileForm, RegistrationForm
+from django.contrib.auth import login, update_session_auth_hash
 from django.contrib.auth.models import User
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
 from django.template.context_processors import csrf
 from verify_email.email_handler import send_verification_email
-
-
-def login_view(request):
-    login(request)
-    return redirect('home') 
-
-
-def logout_view(request):
-    logout(request)
-    return redirect('home_out')
 
 
 def home_out(request):
@@ -35,7 +25,6 @@ def home(request):
     return render(request, 'index.html', {'traders': traders, 'user': user})
 
 
-# see: https://pypi.org/project/Django-Verify-Email/
 def register(request):
     args = {}
     args.update(csrf(request))
@@ -43,13 +32,30 @@ def register(request):
         form = RegistrationForm(request.POST)
         args['form'] = form
         if form.is_valid():
-            inactive_user = send_verification_email(request, form)
+            form.save()
             return redirect('home')
         else:
-            return render('accounts/register.html', args)
+            return render(request, 'accounts/register.html', args)
     else:
         args['form'] = RegistrationForm()
-        return render('accounts/register.html', args)
+        return render(request, 'accounts/register.html', args)
+
+
+# see: https://pypi.org/project/Django-Verify-Email/
+# def register(request):
+#     args = {}
+#     args.update(csrf(request))
+#     if request.method == 'POST':
+#         form = RegistrationForm(request.POST)
+#         args['form'] = form
+#         if form.is_valid():
+#             inactive_user = send_verification_email(request, form)
+#             return redirect('home')
+#         else:
+#             return render('accounts/register.html', args)
+#     else:
+#         args['form'] = RegistrationForm()
+#         return render('accounts/register.html', args)
 
 
 @login_required
@@ -107,3 +113,21 @@ def edit_password(request):
         args['form'] = form
         return render(request, 'update_profile.html', args)
 
+
+@login_required
+def add_trading_account(request):
+    user = User.objects.get(pk=request.user.id)
+    args = {}
+    args.update(csrf(request))
+    args['user'] = user
+    if request.method == 'POST':
+        form = AddTradingAccountForm(data=request.POST, user=request.user)
+        if form.is_valid():
+            form.save()
+            return redirect('edit_profile')
+        else:
+            return redirect('add_trading_account')
+    else:
+        form = AddTradingAccountForm(user=request.user)
+        args['form'] = form
+        return render(request, 'update_profile.html', args)

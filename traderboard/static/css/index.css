@@ -1,0 +1,53 @@
+body {
+    width: 100%;
+    font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+}
+
+.title {
+    width: 100%;
+    text-align:center;
+    margin-top: 90px;
+    margin-bottom: 30px;
+    font-family: 'Raleway','Helvetica Neue',Helvetica,Arial,sans-serif;
+}
+
+.signup-button {
+    position: absolute;
+    right: 8.5%;
+    top: 39px;
+}
+
+.signin-button {
+    position: absolute;
+    right: 6.5%;
+    top: 39px;
+}
+
+.isolated {
+    border-right: 1px solid #dee2e6;
+    border-left: 1px solid #dee2e6;
+}
+
+.latest-row {
+    border-bottom: 1px solid #dee2e6;
+}
+
+.latest-column {
+    border-right: 1px solid #dee2e6;
+}
+
+.sortable:hover {
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.selectable {
+    color: #428bca !important;
+    background-color: transparent !important;
+}
+
+.selectable:hover {
+    text-decoration: underline !important;
+    color: #2a6496 !important;
+    cursor: pointer;
+}

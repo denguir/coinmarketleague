@@ -1,3 +1,4 @@
+from sys import platform
 from django import forms
 from django.contrib.auth.models import User
 from traderboard.models import TradingAccount
@@ -7,9 +8,9 @@ from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 __PLATFORMS__ = ['Binance']
 
 class RegistrationForm(UserCreationForm):
-    # username = forms.CharField(max_length=30, required=True)
-    # first_name = forms.CharField(max_length=30, required=False, help_text='Optional')
-    # last_name = forms.CharField(max_length=30, required=False, help_text='Optional')
+    username = forms.CharField(max_length=30, required=True)
+    first_name = forms.CharField(max_length=30, required=False, help_text='Optional')
+    last_name = forms.CharField(max_length=30, required=False, help_text='Optional')
     email = forms.EmailField(max_length=254, required=True, help_text='Enter a valid email address')
 
     class Meta:
@@ -18,9 +19,7 @@ class RegistrationForm(UserCreationForm):
             'username',
             'first_name',
             'last_name',
-            'email',
-            'password1',
-            'password2'
+            'email'
         )
     
     def clean_username(self):
@@ -85,4 +84,14 @@ class AddTradingAccountForm(forms.ModelForm):
         except:
             raise forms.ValidationError(u'Invalid api key, api secret pair. Please verify again.')
         return api_key
+
+    def save(self, commit=True):
+        ta = TradingAccount(user=self.user, 
+                            platform=self.cleaned_data['platform'],
+                            api_key=self.cleaned_data['api_key'],
+                            api_secret=self.cleaned_data['api_secret'])
+        if commit:
+            ta.save()
+        return ta
+
 

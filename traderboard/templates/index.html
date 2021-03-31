@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block body %}
+<h1 class="title">Cryptocurrency best traders board</h1>
+<div class="row justify-content-center">
+    <div class="col-sm-10">
+        <table class="table">
+            <thead>
+            <tr>
+                <th class="sortable isolated cold-md-1" scope="col">#</th>
+                <th class="sortable col-md-3" scope="col">Username</th>
+                <th class="sortable col-md-2" scope="col"><a href="?order_by=daily_pnl">24h PnL</th>
+                <th class="sortable col-md-2" scope="col"><a href="?order_by=weekly_pnl">7d PnL</th>
+                <th class="sortable col-md-2 latest-column" scope="col"><a href="?order_by=monthly_pnl">1m PnL</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for ranking, trader in traders %}
+              <tr>
+                <th class="isolated" scope="row">{{ ranking }}</th>
+                <td><a class="selectable" href="{% url 'profile_with_pk' pk=trader.user.pk %}">{{ trader.user.username }}</a></td>
+                <td>{{ trader.daily_pnl }} %</td>
+                <td>{{ trader.weekly_pnl }} %</td>
+                <td>{{ trader.monthly_pnl }} %</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

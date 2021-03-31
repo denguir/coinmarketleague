@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block head %}
+<link href="//netdna.bootstrapcdn.com/bootstrap/3.1.0/css/bootstrap.min.css" rel="stylesheet" id="bootstrap-css">
+<link type="text/css" rel="stylesheet" href= {% static 'css/edit_profile.css' %} />
+<script src="//netdna.bootstrapcdn.com/bootstrap/3.1.0/js/bootstrap.min.js"></script>
+<script src="//code.jquery.com/jquery-1.11.1.min.js"></script>
+<link src= {% static 'js/profile.js' %} </script>
+<title>CoinMarketLeague-My Profile</title>
+{% endblock %}
+
+{% block body %}
+<div class="container">
+  <form method="post" novalidate>
+    {% csrf_token %}
+
+    {% if form.errors %}
+      {% for field in form %}
+          {% for error in field.errors %}
+              <div class="alert alert-danger">
+                  <strong>{{ error|escape }}</strong>
+              </div>
+          {% endfor %}
+      {% endfor %}
+      {% for error in form.non_field_errors %}
+          <div class="alert alert-danger">
+              <strong>{{ error|escape }}</strong>
+          </div>
+      {% endfor %}
+    {% endif %}
+    <!-- {{ form.as_p }} -->
+    <div class="container">
+          <div class="row">
+            <div class="col-xs-12 col-sm-12 col-md-6 col-lg-6 col-xs-offset-0 col-sm-offset-0 col-md-offset-3 col-lg-offset-3 toppad" >
+              <div class="panel panel-info">
+                <div class="panel-heading">
+                  <h3 class="panel-title">{{trader.username}}</h3>
+                </div>
+                <div class="panel-body">
+                  <div class="row">
+                    <!-- <div class="col-md-3 col-lg-3 " align="center"> <img alt="User Pic" src="http://babyinfoforyou.com/wp-content/uploads/2014/10/avatar-300x300.png" class="img-circle img-responsive"> </div> -->
+
+                    <div class=" col-md-9 col-lg-9 ">
+                      <table class="table table-user-information">
+                        <tbody>
+                          <div class="container">
+                             <p class="title-description">Personal information</p>
+                            <tr>
+                              <th><label for="username">Username:</label></th>
+                              <td><input id="username" type="text" name="username" value="{{ trader.username }}" maxlength="100" required /></td>
+                            </tr>
+                            <tr>
+                              <th><label for="first_name">First name:</label></th>
+                              <td><input id="first_name" type="text" name="first_name" value="{{ trader.first_name }}" maxlength="100" /></td>
+                            </tr>
+                            <tr>
+                              <th><label for="last_name">Last name:</label></th>
+                              <td><input id="last_name" type="text" name="last_name" value="{{ trader.last_name }}" maxlength="100" /></td>
+                            </tr>
+                            <tr>
+                              <th><label for="email">Email address:</label></th>
+                              <td><input id="email" type="email" name="email" value="{{ trader.email }}" required /></td>
+                            </tr>
+                        </div>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              <div class="panel-footer">
+                <button type="submit" class="btn btn-primary"> Confirm </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+  </form>
+</div>
+{% endblock %}

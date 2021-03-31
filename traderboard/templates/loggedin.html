@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+
+{% block head %}
+<h1 class="title">Cryptocurrency best traders board</h1>
+<a class="signout-button btn btn-primary" target=blank href= {% url 'loggedout' %} >Sign out</a>
+<a class="btn btn-primary" target="blank" href= {% url 'profile' %} > My profile </a>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-sm-10">
+        <table class="table">
+            <thead>
+            <tr>
+                <th class="sortable isolated cold-md-1" scope="col">#</th>
+                <th class="sortable col-md-3" scope="col">Name</th>
+                <th class="sortable col-md-2" scope="col"><a href="?order_by=daily_gain">24h performances</th>
+                <th class="sortable col-md-2" scope="col"><a href="?order_by=weekly_gain">7d performances</th>
+                <th class="sortable col-md-2 latest-column" scope="col"><a href="?order_by=monthly_gain">1m performances</th>
+                <th class="sortable col-md-2 latest-column" scope="col"><a href="?order_by=last_gain">last performances</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for ranking, trader in traders %}
+              <tr>
+                <th class="isolated" scope="row">{{ ranking }}</th>
+                <td><a class="selectable" link="#">{{ trader.username }}</a></td>
+                <td>{{ trader.daily_gain }}</td>
+                <td>{{ trader.weekly_gain }}</td>
+                <td>{{ trader.monthly_gain }}</td>
+                <td class="latest-column">{{ trader.last_gain }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
