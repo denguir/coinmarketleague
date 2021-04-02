@@ -4,52 +4,84 @@
 {% load static %}
 
 {% block head %}
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
-<link type="text/css" rel="stylesheet" href="{% static 'css/signup.css' %}"/>
-<title>CoinMarketLeague-Sign Up</title>
+<title>CoinMarketLeague - Register</title>
 {% endblock %}
 
+{% block page-content %}
+<div class="container">
 
-{% block body %}
-  <form method="post" novalidate>
-    {% csrf_token %}
-    {% for hidden_field in form.hidden_fields %}
-      {{ hidden_field}}
-    {% endfor %}
-
-    {% if form.non_field_errors %}
-      <div class="alert alert-danger" role="alert">
-        {% for error in form.non_field_errors %}
-          {{ error }}
-        {% endfor %}
+  <div class="card o-hidden border-0 shadow-lg my-5">
+      <div class="card-body p-0">
+          <!-- Nested Row within Card Body -->
+          <div class="row">
+              <div class="col-lg-5 d-none d-lg-block bg-register-image"></div>
+              <div class="col-lg-7">
+                  <div class="p-5">
+                      <div class="text-center">
+                          <h1 class="h4 text-gray-900 mb-4">Create an Account!</h1>
+                      </div>
+                      <form class="user" method="post" novalidate>
+                          {% csrf_token %}
+                          {% for hidden_field in form.hidden_fields %}
+                            {{ hidden_field }}
+                          {% endfor %}
+                          {% if form.non_field_errors %}
+                          <div class="alert alert-danger" role="alert">
+                            {% for error in form.non_field_errors %}
+                              {{ error }}
+                            {% endfor %}
+                          </div>
+                          {% endif %}
+                          {% for field in form.visible_fields %}
+                          <div class="form-group row">
+                            {{ field.label_tag }}
+                  
+                            {% if form.is_bound %}
+                              {% if field.errors %}
+                                {% render_field field class="form-control is-invalid" %}
+                                {% for error in field.errors %}
+                                  <div class="invalid-feedback">
+                                    {{ error }}
+                                  </div>
+                                {% endfor %}
+                              {% else %}
+                                {% render_field field class="form-control is-valid" %}
+                              {% endif %}
+                            {% else %}
+                              {% render_field field class="form-control" %}
+                            {% endif %}
+                  
+                            {% if field.help_text %}
+                              <small class="form-text text-muted">{{ field.help_text }}</small>
+                            {% endif %}
+                          </div>
+                          {% endfor %}
+                          <button type="submit" class="btn btn-primary btn-user btn-block">Register Account</button>
+                      </form>
+                      <hr>
+                      <div class="text-center">
+                          <a class="small" href="forgot-password.html">Forgot Password?</a>
+                      </div>
+                      <div class="text-center">
+                          <a class="small" href="{% url 'login' %}">Already have an account? Login!</a>
+                      </div>
+                  </div>
+              </div>
+          </div>
       </div>
-    {% endif %}
+  </div>
 
-    {% for field in form.visible_fields %}
-        <div class="form-group">
-          {{ field.label_tag }}
+</div>
+{% endblock %}
 
-          {% if form.is_bound %}
-            {% if field.errors %}
-              {% render_field field class="form-control is-invalid" %}
-              {% for error in field.errors %}
-                <div class="invalid-feedback">
-                  {{ error }}
-                </div>
-              {% endfor %}
-            {% else %}
-              {% render_field field class="form-control is-valid" %}
-            {% endif %}
-          {% else %}
-            {% render_field field class="form-control" %}
-          {% endif %}
+{% block body-static %}
+<!-- Bootstrap core JavaScript-->
+<script src="{% static 'vendor/jquery/jquery.min.js' %}" %}></script>
+<script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
 
-          {% if field.help_text %}
-            <small class="important">{{ field.help_text }}</small>
-          {% endif %}
-        </div>
-    {% endfor %}
+<!-- Core plugin JavaScript-->
+<script src="{% static 'vendor/jquery-easing/jquery.easing.min.js' %}"></script>
 
-    <button type="submit" class="btn btn-primary">Sign Up</button>
-  </form>
+<!-- Custom scripts for all pages-->
+<script src="{% static 'js/sb-admin-2.min.js' %}"></script>
 {% endblock %}

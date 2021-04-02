@@ -13,6 +13,9 @@ class Profile(models.Model):
     weekly_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
     monthly_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
 
+# TODO:
+# create ProfileSnapshot that pre-aggregates from user's SnapshotAccount
+# common statistics -> reduces the amount of live calculations
 
 class TradingAccount(models.Model):
     '''Trading account of a given User on a supported TradingPlatform'''

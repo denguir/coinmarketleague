@@ -131,3 +131,7 @@ def add_trading_account(request):
         form = AddTradingAccountForm(user=request.user)
         args['form'] = form
         return render(request, 'update_profile.html', args)
+
+# TODO:
+# from graphs, look at:
+# https://github.com/agiliq/django-graphos

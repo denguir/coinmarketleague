@@ -1,54 +1,97 @@
 {% extends 'base.html' %}
-
-{% load widget_tweaks %}
 {% load static %}
+{% load widget_tweaks %}
 
 {% block head %}
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
-<link type="text/css" rel="stylesheet" href="{% static 'css/signup.css' %}"/>
-<title>CoinMarketLeague-Log in</title>
+<title>CoinMarketLeague - Login</title>
 {% endblock %}
 
-{% block body %}
-  <form method="post" novalidate>
-    {% csrf_token %}
-    {% for hidden_field in form.hidden_fields %}
-      {{ hidden_field}}
-    {% endfor %}
 
-    {% if form.non_field_errors %}
-      <div class="alert alert-danger" role="alert">
-        {% for error in form.non_field_errors %}
-          {{ error }}
-        {% endfor %}
+{% block page-content %}
+<div class="container">
+  <!-- Outer Row -->
+  <div class="row justify-content-center">
+
+      <div class="col-xl-10 col-lg-12 col-md-9">
+
+          <div class="card o-hidden border-0 shadow-lg my-5">
+              <div class="card-body p-0">
+                  <!-- Nested Row within Card Body -->
+                  <div class="row">
+                      <div class="col-lg-6 d-none d-lg-block bg-login-image"></div>
+                      <div class="col-lg-6">
+                          <div class="p-5">
+                              <div class="text-center">
+                                  <h1 class="h4 text-gray-900 mb-4">Welcome Back!</h1>
+                              </div>
+                              <form class="user" method="post" novalidate>
+                                  {% csrf_token %}
+                                  {% for hidden_field in form.hidden_fields %}
+                                    {{ hidden_field }}
+                                  {% endfor %}
+
+                                  {% if form.non_field_errors %}
+                                  <div class="alert alert-danger" role="alert">
+                                    {% for error in form.non_field_errors %}
+                                      {{ error }}
+                                    {% endfor %}
+                                  </div>
+                                  {% endif %}
+
+                                  {% for field in form.visible_fields %}
+                                  <div class="form-group">
+                                    {{ field.label_tag }}
+                          
+                                    {% if form.is_bound %}
+                                      {% if field.errors %}
+                                        {% render_field field class="form-control is-invalid" %}
+                                        {% for error in field.errors %}
+                                          <div class="invalid-feedback">
+                                            {{ error }}
+                                          </div>
+                                        {% endfor %}
+                                      {% else %}
+                                        {% render_field field class="form-control is-valid" %}
+                                      {% endif %}
+                                    {% else %}
+                                      {% render_field field class="form-control" %}
+                                    {% endif %}
+                          
+                                    {% if field.help_text %}
+                                      <small class="form-text text-muted">{{ field.help_text }}</small>
+                                    {% endif %}
+                                  </div>
+                              {% endfor %}
+                              <button type="submit" class="btn btn-primary btn-user btn-block">Login</button>
+                              </form>
+                              <hr>
+                              <div class="text-center">
+                                  <a class="small" href="forgot-password.html">Forgot Password?</a>
+                              </div>
+                              <div class="text-center">
+                                  <a class="small" href="{% url 'register' %}">Create an Account!</a>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+
       </div>
-    {% endif %}
 
-    {% for field in form.visible_fields %}
-        <div class="form-group">
-          {{ field.label_tag }}
+  </div>
 
-          {% if form.is_bound %}
-            {% if field.errors %}
-              {% render_field field class="form-control is-invalid" %}
-              {% for error in field.errors %}
-                <div class="invalid-feedback">
-                  {{ error }}
-                </div>
-              {% endfor %}
-            {% else %}
-              {% render_field field class="form-control is-valid" %}
-            {% endif %}
-          {% else %}
-            {% render_field field class="form-control" %}
-          {% endif %}
+</div>
+{% endblock %}
 
-          {% if field.help_text %}
-            <small class="form-text text-muted">{{ field.help_text }}</small>
-          {% endif %}
-        </div>
-    {% endfor %}
+{% block body-static %}
+<!-- Bootstrap core JavaScript-->
+<script src="{% static 'vendor/jquery/jquery.min.js' %}" %}></script>
+<script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
 
-    <button type="submit" class="btn btn-primary">Log In</button>
-  </form>
+<!-- Core plugin JavaScript-->
+<script src="{% static 'vendor/jquery-easing/jquery.easing.min.js' %}"></script>
+
+<!-- Custom scripts for all pages-->
+<script src="{% static 'js/sb-admin-2.min.js' %}"></script>
 {% endblock %}
