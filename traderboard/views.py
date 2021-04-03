@@ -133,5 +133,5 @@ def add_trading_account(request):
         return render(request, 'update_profile.html', args)
 
 # TODO:
-# from graphs, look at:
-# https://github.com/agiliq/django-graphos
+# for graphs, look at:
+# https://simpleisbetterthancomplex.com/tutorial/2020/01/19/how-to-use-chart-js-with-django.html

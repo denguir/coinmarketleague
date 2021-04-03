@@ -7,15 +7,26 @@ from django.dispatch import receiver
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    email_confirmed = models.BooleanField(default=False)
+    # main settings
+    public = models.BooleanField(default=False)
     # store main stats about the user
     daily_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
     weekly_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
     monthly_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
 
-# TODO:
-# create ProfileSnapshot that pre-aggregates from user's SnapshotAccount
-# common statistics -> reduces the amount of live calculations
+
+class SnapshotProfile(models.Model):
+    '''Contains pre-aggregate stats about the user'''
+    profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    balance_btc = models.DecimalField(max_digits=30, decimal_places=8)
+    balance_usdt = models.DecimalField(max_digits=30, decimal_places=2)
+    # these are profit and losses from the last snapshot: pnl(t-1; t),
+    # note that pnl(t-2; t) = pnl(t-2; t-1) + pnl(t-1; t) * bal(t-1)/bal(t-2)
+    pnl_btc =  models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
+    pnl_usdt =  models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
+
 
 class TradingAccount(models.Model):
     '''Trading account of a given User on a supported TradingPlatform'''

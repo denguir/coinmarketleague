@@ -67,7 +67,7 @@ class BinanceTradingClient(TradingClient):
         start = market.to_timestamp(date_from)
         end = market.to_timestamp(date_to)
         info = self.client.get_withdraw_history(startTime=start, endTime=end, status=6)
-        withdrawals = {widl['asset'] : float(widl['amount']) for widl in info['withdrawList']}
+        withdrawals = {wit['asset'] : float(wit['amount']) for wit in info['withdrawList']}
         return withdrawals
 
     def get_btc_value(self, balances, market):
