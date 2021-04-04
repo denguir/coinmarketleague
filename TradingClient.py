@@ -22,7 +22,11 @@ class TradingClient(ABC):
         self.ta = ta
 
     @abstractmethod
-    def get_balances(self) -> list:
+    def get_balances(self) -> dict:
+        pass
+
+    @abstractmethod
+    def get_relative_balances(self, market: Market) -> dict:
         pass
 
     @abstractmethod
@@ -70,28 +74,23 @@ class BinanceTradingClient(TradingClient):
         withdrawals = {wit['asset'] : float(wit['amount']) for wit in info['withdrawList']}
         return withdrawals
 
-    def get_btc_value(self, balances, market):
-        # balances is a dict of the form {asset: amount}:
-        # could be balances, deposits, withdrawals
-        btc_value = 0.0
-        for asset in balances.keys():
+    def get_asset_btc_value(self, asset, market):
+        try:
             try:
-                try:
-                    if asset == 'BTC':
-                        btc_price = 1.0
-                    else:
-                        btc_price = market.table[asset + 'BTC']
-                except KeyError:
-                    btc_price = 1.0 / market.table['BTC' + asset]
+                if asset == 'BTC':
+                    btc_price = 1.0
+                else:
+                    btc_price = market.table[asset + 'BTC']
             except KeyError:
-                # asset not available on platform
-                btc_price = 0.0
-            btc_value += (balances[asset] * btc_price)
-        return btc_value
+                btc_price = 1.0 / market.table['BTC' + asset]
+        except KeyError:
+            # asset not available on platform
+            btc_price = 0.0
+        return btc_price
 
-    def get_value(self, balances, market, base='BTC'):
+    def get_asset_value(self, asset, market, base='USDT'):
         base = base.upper()
-        btc_value = self.get_btc_value(balances, market)
+        btc_value = self.get_asset_btc_value(asset, market)
         if base == 'BTC':
             market_price = 1.0
         else:
@@ -101,16 +100,32 @@ class BinanceTradingClient(TradingClient):
                 market_price = market.table[base + 'BTC']
         market_value = btc_value * market_price
         return market_value
+           
+    def get_value(self, balances, market, base='USDT'):
+        # balances is a dict of the form {asset: amount}:
+        # could be balances, deposits, withdrawals
+        value = 0.0
+        for asset in balances.keys():
+            value += (balances[asset] * self.get_asset_value(asset, market, base))
+        return value
+    
+    def get_relative_balances(self, market, base='USDT'):
+        balances = self.get_balances()
+        total_value = self.get_value(balances, market, base)
+        for asset, amount in balances.items():
+            val = self.get_asset_value(asset, market, base)
+            balances[asset] = amount * val / total_value
+        return balances
 
-    def get_balances_value(self, market, base='BTC'):
+    def get_balances_value(self, market, base='USDT'):
         balances = self.get_balances()
         return self.get_value(balances, market, base)
 
-    def get_deposits_value(self, date_from, date_to, market, base='BTC'):
+    def get_deposits_value(self, date_from, date_to, market, base='USDT'):
         deposits = self.get_deposits(date_from, date_to, market)
         return self.get_value(deposits, market, base)
     
-    def get_withdrawals_value(self, date_from, date_to, market, base='BTC'):
+    def get_withdrawals_value(self, date_from, date_to, market, base='USDT'):
         withdrawals = self.get_withdrawals(date_from, date_to, market)
         return self.get_value(withdrawals, market, base)
 

@@ -14,6 +14,7 @@ from django.db.models import Sum, Max
 __PLATFORMS__ = ['Binance']
 
 
+# This series of queries can definitely be optimized to run faster
 if __name__ == '__main__':
     # Initialize markets 
     markets = {platform : Market.trading_from(platform) for platform in __PLATFORMS__}
@@ -38,6 +39,7 @@ if __name__ == '__main__':
     for user in users:
         tas = TradingAccount.objects.filter(user=user)
         balance_details = {}
+        balance_details_relative = {}
         balance_usdt_now = 0.0
         balance_btc_now = 0.0
 
@@ -69,7 +71,7 @@ if __name__ == '__main__':
                 else:
                     balance_details[detail.asset] = float(detail.amount)
 
-            # update profile balace
+            # update profile balance
             balance_usdt_now += float(last_snap.balance_usdt)
             balance_btc_now += float(last_snap.balance_btc)
 

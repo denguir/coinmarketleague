@@ -1,4 +1,4 @@
-from traderboard.models import Profile
+from traderboard.models import Profile, SnapshotProfile, SnapshotProfileDetails
 from traderboard.forms import AddTradingAccountForm, EditProfileForm, RegistrationForm
 from django.contrib.auth import login, update_session_auth_hash
 from django.contrib.auth.models import User
@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
 from django.template.context_processors import csrf
 from verify_email.email_handler import send_verification_email
+import json
 
 
 def home_out(request):
@@ -60,9 +61,20 @@ def register(request):
 
 @login_required
 def show_profile(request):
-    # show balance + balance percentage
-    trader = User.objects.get(pk=request.user.id)
-    args = {'trader': trader, 'overview': False}
+    user = User.objects.get(pk=request.user.id)
+    # get balance info
+    snaps = SnapshotProfile.objects.filter(profile=user.profile).order_by('-created_at')
+    balance = snaps[0].balance_usdt
+    # get balance details info
+    details = SnapshotProfileDetails.objects.filter(snapshot=snaps[0], amount__gt = 1e-8).order_by('-amount')
+    balance_details = {'labels': [detail.asset for detail in details], 
+                       'data': [float(detail.amount) for detail in details]}
+
+    # get PnL aggregated history
+    
+    # get balances aggregated history
+
+    args = {'user': user, 'balance': balance, 'balance_details': balance_details,}
     return render(request, 'accounts/profile.html', args)
 
 
