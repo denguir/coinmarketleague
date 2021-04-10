@@ -1,6 +1,7 @@
+from datetime import datetime
 from TradingClient import TradingClient
 from traderboard.models import TradingAccount
-from Market import Market
+
 
 class Trader(object):
 
@@ -29,7 +30,7 @@ class Trader(object):
         for tc, market in self.tcs:
             tc_bal = tc.get_balances()
             for asset, amount in tc_bal.items():
-                val = tc.get_asset_value(asset, tc_bal, market, base)
+                val = tc.get_asset_value(asset, market, base)
                 if asset in balances.keys():
                     balances[asset] += (amount * val)
                 else:
@@ -44,14 +45,21 @@ class Trader(object):
     def get_balances_value(self, base='USDT'):
         return sum(tc.get_balances_value(market, base) for tc, market in self.tcs)
 
-    def get_deposits_values(self, date_from, date_to, base='USDT'):
+    def get_deposits_value(self, date_from, date_to, base='USDT'):
         return sum(tc.get_deposits_value(date_from, date_to, market, base) for tc, market in self.tcs)
 
     def get_withdrawals_value(self, date_from, date_to, base='USDT'):
         return sum(tc.get_withdrawals_value(date_from, date_to, market, base) for tc, market in self.tcs)
 
-    def get_PnL(self, date_from, date_to, base='USDT'):
-        deposits = self.get_deposits_value(snap_from.created_at, snap_to.created_at, base)
-        withdrawals = self.get_withdrawals_value(snap_from.created_at, snap_to.created_at, base)
-        pnl = (balance_to - deposits + withdrawals - balance_from) / balance_from
+    def get_PnL(self, snap, now, base='USDT'):
+        deposits = self.get_deposits_value(snap.created_at, now, base)
+        withdrawals = self.get_withdrawals_value(snap.created_at, now, base)
+        balance_now = self.get_balances_value(base)
+
+        if base == 'USDT':
+            balance_from = snap.balance_usdt
+        elif base == 'BTC':
+            balance_from = snap.balance_btc
+
+        pnl = (balance_now - deposits + withdrawals - balance_from) / balance_now
         return pnl

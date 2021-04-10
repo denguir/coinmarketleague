@@ -20,10 +20,12 @@ class SnapshotProfile(models.Model):
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    # balance value
     balance_btc = models.DecimalField(max_digits=30, decimal_places=8)
     balance_usdt = models.DecimalField(max_digits=30, decimal_places=2)
     # these are profit and losses from the last snapshot: pnl(t-1; t),
     # note that pnl(t-2; t) = pnl(t-2; t-1) + pnl(t-1; t) * bal(t-1)/bal(t-2)
+    pnl_btc =  models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
     pnl_usdt =  models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
 
 
@@ -66,8 +68,7 @@ class SnapshotAccountDetails(models.Model):
     asset = models.CharField(max_length=10)
     amount = models.DecimalField(max_digits=30, decimal_places=8)
 
-# see:
-# https://simpleisbetterthancomplex.com/tutorial/2016/07/22/how-to-extend-django-user-model.html
+
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:

@@ -56,6 +56,7 @@ class BinanceTradingClient(TradingClient):
         self.client = BinanceClient(ta.api_key, ta.api_secret)
 
     def get_balances(self):
+        # only for spot account
         info = self.client.get_account()
         balances = {bal['asset'] : float(bal['free']) + float(bal['locked']) for bal in info['balances']}
         return balances
