@@ -1,3 +1,5 @@
+from Trader import Trader
+from Market import Market
 from traderboard.models import Profile, SnapshotProfile, SnapshotProfileDetails
 from traderboard.forms import AddTradingAccountForm, EditProfileForm, RegistrationForm
 from django.contrib.auth import login, update_session_auth_hash
@@ -7,7 +9,11 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
 from django.template.context_processors import csrf
 from verify_email.email_handler import send_verification_email
-import json
+from datetime import datetime, timedelta, timezone
+from utils import to_series, to_time_series
+
+
+__PLATFORMS__ = ['Binance']
 
 
 def home_out(request):
@@ -62,31 +68,75 @@ def register(request):
 @login_required
 def show_profile(request):
     user = User.objects.get(pk=request.user.id)
-    # get balance info
-    snaps = SnapshotProfile.objects.filter(profile=user.profile).order_by('-created_at')
-    balance = snaps[0].balance_usdt
+    markets = {platform : Market.trading_from(platform) for platform in __PLATFORMS__}
+    trader = Trader(user, markets)
+    now = datetime.now(timezone.utc)
+
+    # get balance aggregated history
+    balance_usdt_hist = trader.get_historical_balances(now - timedelta(days=31), now, 'USDT')
+    balance_usdt_hist = to_time_series(balance_usdt_hist)
+
+    # get balance info now
+    balance_usdt = round(trader.get_balances_value('USDT'), 2)
+
+    # get balance percentage
+    balance_percentage = trader.get_relative_balances('USDT')
+    balance_percentage = to_series(balance_percentage)
+
     # get balance details info
-    details = SnapshotProfileDetails.objects.filter(snapshot=snaps[0], amount__gt = 1e-8).order_by('-amount')
-    balance_details = {'labels': [detail.asset for detail in details], 
-                       'data': [float(detail.amount) for detail in details]}
+    balance_details = trader.get_balances()
+    balance_details = to_series(balance_details)
 
     # get PnL aggregated history
+    cum_pnl_usdt_hist = trader.get_historical_cumulative_PnL(now - timedelta(days=31), now, 'USDT')
+    cum_pnl_usdt_hist = to_time_series(cum_pnl_usdt_hist)
     
-    # get balances aggregated history
 
-    args = {'user': user, 'balance': balance, 'balance_details': balance_details,}
+    args = {'user': user, 'balance_usdt': balance_usdt, 'balance_details': balance_details,
+            'balance_usdt_hist': balance_usdt_hist, 'balance_percentage': balance_percentage, 
+            'cum_pnl_usdt_hist': cum_pnl_usdt_hist, 'overview': False}
+
     return render(request, 'accounts/profile.html', args)
 
 
 @login_required
 def show_overview_profile(request, pk=None):
     if pk:
-        trader = User.objects.get(pk=pk)
+        user = User.objects.get(pk=pk)
+        if user.profile.public:
+            overview = False
+        else:
+            overview = True
     else:
-        return redirect('show_profile')
-    # show balance percentage
+        return render(request, '404.html')
+    
+    markets = {platform : Market.trading_from(platform) for platform in __PLATFORMS__}
+    trader = Trader(user, markets)
+    now = datetime.now(timezone.utc)
 
-    args = {'trader': trader, 'overview': True}
+    args = {'user': user, 'overview': overview}
+    # get PnL aggregated history
+    cum_pnl_usdt_hist = trader.get_historical_cumulative_PnL(now - timedelta(days=31), now, 'USDT')
+    cum_pnl_usdt_hist = to_time_series(cum_pnl_usdt_hist)
+    args['cum_pnl_usdt_hist'] = cum_pnl_usdt_hist
+    # get balance percentage
+    balance_percentage = trader.get_relative_balances('USDT')
+    balance_percentage = to_series(balance_percentage)
+    args['balance_percentage'] = balance_percentage
+
+    if not overview:
+        # get balance aggregated history
+        balance_usdt_hist = trader.get_historical_balances(now - timedelta(days=31), now, 'USDT')
+        balance_usdt_hist = to_time_series(balance_usdt_hist)
+        args['balance_usdt_hist'] = balance_usdt_hist
+        # get balance info now
+        balance_usdt = round(trader.get_balances_value('USDT'), 2)
+        args['balance_usdt'] = balance_usdt
+        # get balance details info
+        balance_details = trader.get_balances()
+        balance_details = to_series(balance_details)
+        args['balance_details'] = balance_details
+    
     return render(request, 'accounts/profile.html', args)
 
 

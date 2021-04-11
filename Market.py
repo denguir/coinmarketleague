@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from abc import ABC, abstractmethod
 from binance.client import Client as BinanceClient
 
@@ -18,7 +18,11 @@ class Market(ABC):
     @abstractmethod
     def __init__(self, platform):
         self.platform = platform
-        
+
+    @abstractmethod
+    def get_timestamp_offset(self) -> int:
+        pass
+
     @abstractmethod
     def to_timestamp(self, date: datetime) -> int:
         pass
@@ -35,10 +39,18 @@ class BinanceMarket(Market):
         super().__init__(platform)
         self.client = BinanceClient(None, None)
         self.table = self.get_price_table()
+        self.timestamp_offset = self.get_timestamp_offset()
     
+    def get_timestamp_offset(self):
+        '''Return offset between API server time and UTC timezone'''
+        server_time = self.client.get_server_time()['serverTime'] # in ms
+        now = datetime.now(timezone.utc).timestamp()
+        offset = server_time - int(now * 1000)
+        return offset
+
     def to_timestamp(self, date):
         # convert server time to UTC time, in ms
-        ts = int(date.timestamp() * 1000 + self.client.timestamp_offset)
+        ts = int(date.timestamp() * 1000 + self.timestamp_offset)
         return ts
 
     def get_price_table(self):

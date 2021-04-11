@@ -5,7 +5,6 @@ django.setup()
 
 from django.contrib.auth.models import User
 from traderboard.models import SnapshotProfile, SnapshotProfileDetails
-from TradingClient import TradingClient
 from Trader import Trader
 from Market import Market
 from datetime import datetime, timedelta, timezone
@@ -39,7 +38,8 @@ if __name__ == '__main__':
             last_snap = SnapshotProfile.objects.filter(profile=user.profile).latest('created_at')
             pnl_btc = trader.get_PnL(last_snap, now, 'BTC')
             pnl_usdt = trader.get_PnL(last_snap, now, 'USDT')
-        except:
+        except Exception as e:
+            print(e)
             pnl_btc = None
             pnl_usdt = None
 
@@ -48,7 +48,8 @@ if __name__ == '__main__':
             daily_snap = SnapshotProfile.objects.filter(profile=user.profile)\
                                                 .filter(created_at__range=day_range).latest('created_at')
             daily_pnl = trader.get_PnL(daily_snap, now, 'USDT')
-        except:
+        except Exception as e:
+            print(e)
             daily_pnl = None
         
         # Get pnL data wrt to 7d record
@@ -56,7 +57,8 @@ if __name__ == '__main__':
             weekly_snap = SnapshotProfile.objects.filter(profile=user.profile)\
                                             .filter(created_at__range=week_range).latest('created_at')
             weekkly_pnl = trader.get_PnL(weekly_snap, now, 'USDT')
-        except:
+        except Exception as e:
+            print(e)
             weekkly_pnl = None
 
         # Get pnL data wrt to 1m record
@@ -64,7 +66,8 @@ if __name__ == '__main__':
             monthly_snap = SnapshotProfile.objects.filter(profile=user.profile)\
                                             .filter(created_at__range=month_range).latest('created_at')
             monthly_pnl = trader.get_PnL(monthly_snap, now, 'USDT')
-        except:
+        except Exception as e:
+            print(e)
             monthly_pnl = None
 
 
