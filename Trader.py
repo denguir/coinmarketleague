@@ -1,10 +1,11 @@
-from datetime import datetime
+from datetime import date, datetime
 from operator import le
 from TradingClient import TradingClient
 from traderboard.models import TradingAccount, SnapshotProfile
 from django.db.models.functions import TruncMonth, TruncDay
 from collections import OrderedDict
 from django.db.models import Avg
+import numpy as np
 
 
 class Trader(object):
@@ -16,6 +17,7 @@ class Trader(object):
         self.tas = TradingAccount.objects.filter(user=user).iterator()
         self.tcs = [(TradingClient.trading_from(ta), self.markets[ta.platform]) for ta in self.tas]
     
+
     def get_balances(self):
         balances = {}
         for tc, _ in self.tcs:
@@ -28,6 +30,7 @@ class Trader(object):
         balances = {asset: amount for asset, amount in balances.items() if amount > 1e-8}
         return balances
     
+
     def get_relative_balances(self, base='USDT'):
         balances = {}
         for tc, market in self.tcs:
@@ -45,8 +48,21 @@ class Trader(object):
             balances = {}
         return balances
 
+
+    def get_balances_value(self, base='USDT'):
+        return sum(tc.get_balances_value(market, base) for tc, market in self.tcs)
+
+
+    def get_deposits_value(self, date_from, date_to, base='USDT'):
+        return sum(tc.get_deposits_value(date_from, date_to, market, base) for tc, market in self.tcs)
+
+
+    def get_withdrawals_value(self, date_from, date_to, base='USDT'):
+        return sum(tc.get_withdrawals_value(date_from, date_to, market, base) for tc, market in self.tcs)
+
+
     def get_historical_balances(self, date_from, date_to, base='USDT'):
-        '''returns a historical balance series aggregated by day'''
+        '''returns a historical balance time series aggregated by day'''
         snaps = SnapshotProfile.objects.filter(profile=self.user.profile)\
                                        .filter(created_at__range=[date_from, date_to])\
                                        .annotate(day=TruncDay('created_at'))\
@@ -64,14 +80,6 @@ class Trader(object):
 
         return balance_hist
 
-    def get_balances_value(self, base='USDT'):
-        return sum(tc.get_balances_value(market, base) for tc, market in self.tcs)
-
-    def get_deposits_value(self, date_from, date_to, base='USDT'):
-        return sum(tc.get_deposits_value(date_from, date_to, market, base) for tc, market in self.tcs)
-
-    def get_withdrawals_value(self, date_from, date_to, base='USDT'):
-        return sum(tc.get_withdrawals_value(date_from, date_to, market, base) for tc, market in self.tcs)
 
     def get_PnL(self, snap, now, base='USDT'):
         deposits = self.get_deposits_value(snap.created_at, now, base)
@@ -85,16 +93,46 @@ class Trader(object):
 
         pnl = round((balance_now - deposits + withdrawals - balance_from)*100 / balance_from, 2)
         return pnl
-    
-    def get_historical_cumulative_PnL(self, date_from, date_to, base='USDT'):
+
+
+    def get_historical_daily_PnL(self, date_from, date_to, base='USDT'):
+        '''Compute PnL for each day w.r.t previous day, using the formula:
+        PnL(t) = bal(t) - [bal(t-1) + dep(t-1, t) - wit(t-1, t)]'''
         balance_hist = self.get_historical_balances(date_from, date_to, base)
         pnl_hist = OrderedDict()
         if len(balance_hist) > 1:
-            deposit_hist = [self.get_deposits_value(date_from, t, base) for t in balance_hist.keys()]
-            withdrawal_hist = [self.get_withdrawals_value(date_from, t, base) for t in balance_hist.keys()]
-            _, first_bal = next(iter(balance_hist.items()))
-            for t, (date, bal) in enumerate(balance_hist.items()):
-                if t > 0:      
-                    pnl_hist[date] = \
-                        round((bal - deposit_hist[t] + withdrawal_hist[t] - first_bal)*100 / first_bal, 2)
+            days = list(balance_hist.keys()) # make sure no wholes in days consecutive
+            deposit_hist = [self.get_deposits_value(days[t], days[t+1], base) for t in range(len(days) - 1)]
+            withdrawal_hist = [self.get_withdrawals_value(days[t], days[t+1], base) for t in range(len(days) - 1)]
+            for t in range(1, len(days)):
+                pnl_hist[days[t]] = balance_hist[days[t]] - balance_hist[days[t-1]] - deposit_hist[t-1] + withdrawal_hist[t-1]
         return pnl_hist
+
+
+    def get_historical_cumulative_PnL(self, date_from, date_to, base='USDT'):
+        '''Compute cumulative PnL for each day w.r.t first day, using the formula:
+        cumPnL(t-n, t) = sum(daily_PnL(k) | k = t-n+1 -> t)'''
+        daily_pnl = self.get_historical_daily_PnL(date_from, date_to, base)
+        days = daily_pnl.keys()
+        cum_pnl = np.cumsum(list(daily_pnl.values()))
+        return OrderedDict(zip(days, cum_pnl))
+
+
+    def get_historical_cumulative_relative_PnL(self, date_from, date_to, base='USDT'):
+        '''Compute cumulative PnL in percent for each day w.r.t first day, using the formula:
+        cumPnLPercent(t-n, t) = cumPnL(t-n, t)/[bal(t-n) + dep(t-n,t) - wit(t-n,t)]'''
+        balance_hist = self.get_historical_balances(date_from, date_to, base)
+        cum_pnl_hist = self.get_historical_cumulative_PnL(date_from, date_to, base)
+        
+        # balance data might not be actually available in the [date_from, date_to] time range
+        # this is why we make sure to extract these data from balance_hist
+        bal_from = list(balance_hist.values())[0]
+        dates = list(balance_hist.keys())
+        deposits = self.get_deposits_value(dates[0], dates[-1], base)
+        withdrawals = self.get_withdrawals_value(dates[0], dates[-1], base)
+
+        days = cum_pnl_hist.keys()
+        cum_pnl = np.array(list(cum_pnl_hist.values()))
+        cum_pnl_percent = np.around(cum_pnl * 100 / (bal_from + deposits - withdrawals), 2)
+        return OrderedDict(zip(days, cum_pnl_percent))
+

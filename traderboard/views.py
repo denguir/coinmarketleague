@@ -87,14 +87,19 @@ def show_profile(request):
     balance_details = trader.get_balances()
     balance_details = to_series(balance_details)
 
-    # get PnL aggregated history
-    cum_pnl_usdt_hist = trader.get_historical_cumulative_PnL(now - timedelta(days=31), now, 'USDT')
+    # get daily PnL aggregated history
+    daily_pnl_usdt_hist = trader.get_historical_daily_PnL(now - timedelta(days=31), now, 'USDT')
+    daily_pnl_usdt_hist = to_time_series(daily_pnl_usdt_hist)
+
+    # get cumulative PnL aggregated history
+    cum_pnl_usdt_hist = trader.get_historical_cumulative_relative_PnL(now - timedelta(days=31), now, 'USDT')
     cum_pnl_usdt_hist = to_time_series(cum_pnl_usdt_hist)
     
 
     args = {'user': user, 'balance_usdt': balance_usdt, 'balance_details': balance_details,
             'balance_usdt_hist': balance_usdt_hist, 'balance_percentage': balance_percentage, 
-            'cum_pnl_usdt_hist': cum_pnl_usdt_hist, 'overview': False}
+            'cum_pnl_usdt_hist': cum_pnl_usdt_hist, 'daily_pnl_usdt_hist': daily_pnl_usdt_hist,
+            'overview': False}
 
     return render(request, 'accounts/profile.html', args)
 
@@ -136,7 +141,10 @@ def show_overview_profile(request, pk=None):
         balance_details = trader.get_balances()
         balance_details = to_series(balance_details)
         args['balance_details'] = balance_details
-    
+        # get daily pnl 
+        daily_pnl_usdt_hist = trader.get_historical_daily_PnL(now - timedelta(days=31), now, 'USDT')
+        daily_pnl_usdt_hist = to_time_series(daily_pnl_usdt_hist)
+        args['daily_pnl_usdt_hist'] = daily_pnl_usdt_hist
     return render(request, 'accounts/profile.html', args)
 
 
@@ -193,7 +201,3 @@ def add_trading_account(request):
         form = AddTradingAccountForm(user=request.user)
         args['form'] = form
         return render(request, 'update_profile.html', args)
-
-# TODO:
-# for graphs, look at:
-# https://simpleisbetterthancomplex.com/tutorial/2020/01/19/how-to-use-chart-js-with-django.html
