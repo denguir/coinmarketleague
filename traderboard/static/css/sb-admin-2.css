@@ -9757,11 +9757,17 @@ a:focus {
 
 #wrapper {
   display: flex;
+  width: 100%;
+}
+
+#content-wrapper {
+  width: 80%;
+  margin: auto;
+  background-color: #f8f9fc;
 }
 
 #wrapper #content-wrapper {
   background-color: #f8f9fc;
-  width: 100%;
   overflow-x: hidden;
 }
 

@@ -1,2 +1,4 @@
+django>=3.0.7
+numpy
 python-binance
 django-searchable-encrypted-fields
