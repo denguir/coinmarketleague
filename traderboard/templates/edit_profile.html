@@ -17,7 +17,7 @@
   <form action="/accounts/loggedin/profile" method="post" novalidate>
     {% csrf_token %}
     {% for hidden_field in form.hidden_fields %}
-      {{ hidden_field}}
+      {{ hidden_field }}
     {% endfor %}
 
     {% if form.non_field_errors %}

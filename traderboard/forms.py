@@ -5,7 +5,9 @@ from traderboard.models import TradingAccount
 from TradingClient import TradingClient
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 
+
 __PLATFORMS__ = ['Binance']
+
 
 class RegistrationForm(UserCreationForm):
     username = forms.CharField(max_length=30, required=True)
@@ -39,7 +41,8 @@ class RegistrationForm(UserCreationForm):
 
 
 class EditProfileForm(UserChangeForm):
-
+    password = None
+    username = forms.CharField(max_length=30, disabled=True)
     class Meta:
         model = User
         fields = (
@@ -47,12 +50,11 @@ class EditProfileForm(UserChangeForm):
             'first_name',
             'last_name',
             'email',
-            'password'
         )
 
 
 class AddTradingAccountForm(forms.ModelForm):
-
+    '''Form to link a trading account to your profile'''
     platform = forms.ChoiceField(choices=list(enumerate(__PLATFORMS__)))
     api_key = forms.CharField(min_length=64, max_length=64, required=True, help_text='Provide with READ ONLY API key')
     api_secret = forms.CharField(min_length=64, max_length=64, required=True, help_text='Provide with READ ONLY API secret')

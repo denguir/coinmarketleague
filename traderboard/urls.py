@@ -9,5 +9,8 @@ urlpatterns = [
     path('register/', views.register, name='register'),
     path('profile/', views.show_profile, name='profile'),
     path('profile/<int:pk>/', views.show_overview_profile, name='profile_with_pk'),
-    path('profile/edit/', views.edit_profile, name='edit_profile'),
+    path('settings', views.show_settings, name='settings'),
+    path('edit-profile/', views.edit_profile, name='edit_profile'),
+    path('edit-password/', views.edit_password, name='edit_password'),
+    
     ]

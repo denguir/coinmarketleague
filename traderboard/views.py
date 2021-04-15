@@ -1,8 +1,11 @@
+from numpy.core.fromnumeric import argmax
 from Trader import Trader
 from Market import Market
 from traderboard.models import Profile, SnapshotProfile, SnapshotProfileDetails
 from traderboard.forms import AddTradingAccountForm, EditProfileForm, RegistrationForm
-from django.contrib.auth import login, update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
+from django.contrib import messages
+from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.models import User
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
@@ -149,6 +152,11 @@ def show_overview_profile(request, pk=None):
 
 
 @login_required
+def show_settings(request):
+    return redirect('edit_profile')
+
+
+@login_required
 def edit_profile(request):
     user = User.objects.get(pk=request.user.id)
     args = {}
@@ -158,7 +166,11 @@ def edit_profile(request):
         form = EditProfileForm(request.POST, instance=user)
         if form.is_valid():
             form.save()
-            return render(request, 'accounts/edit_profile.html', args)
+            messages.success(request, 'Profile succesfully updated!')
+            return redirect('edit_profile')
+        else:
+            messages.error(request, 'Invalid information provided.')
+            return redirect('edit_profile')
     else:
         form = EditProfileForm(instance=user)
         args['form'] = form
@@ -167,21 +179,23 @@ def edit_profile(request):
 
 @login_required
 def edit_password(request):
+    args = {}
+    args.update(csrf(request))
     if request.method == 'POST':
         form = PasswordChangeForm(data=request.POST, user=request.user)
         form.actual_user = request.user
         if form.is_valid():
             form.save()
             update_session_auth_hash(request, form.user)
-            return redirect('edit_profile')
+            messages.success(request, 'Password changed successfully!')
+            return redirect('edit_password')
         else:
+            messages.error(request, 'Invalid password.')
             return redirect('edit_password')
     else:
-        args = {}
-        args.update(csrf(request))
         form = PasswordChangeForm(user=request.user)
         args['form'] = form
-        return render(request, 'update_profile.html', args)
+        return render(request, 'accounts/edit_password.html', args)
 
 
 @login_required
