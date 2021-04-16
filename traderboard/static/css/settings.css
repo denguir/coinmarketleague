@@ -49,6 +49,10 @@ label.btn {
     box-shadow: 0 1px 4px rgba(24,28,33,0.012);
 }
 
+.card-text {
+    position: relative;
+}
+
 .row-bordered {
     overflow: hidden;
 }
@@ -97,4 +101,3 @@ html:not(.dark-style) .account-settings-links .list-group-item.active {
     padding: 0.85rem 1.5rem;
     border-color: rgba(24,28,33,0.03) !important;
 }
-

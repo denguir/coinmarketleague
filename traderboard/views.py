@@ -1,13 +1,12 @@
-from numpy.core.fromnumeric import argmax
 from Trader import Trader
 from Market import Market
-from traderboard.models import Profile, SnapshotProfile, SnapshotProfileDetails
+from traderboard.models import Profile, TradingAccount
 from traderboard.forms import AddTradingAccountForm, EditProfileForm, RegistrationForm
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.models import User
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
 from django.template.context_processors import csrf
@@ -109,14 +108,12 @@ def show_profile(request):
 
 @login_required
 def show_overview_profile(request, pk=None):
-    if pk:
-        user = User.objects.get(pk=pk)
-        if user.profile.public:
-            overview = False
-        else:
-            overview = True
+    user = get_object_or_404(User, pk=pk)
+
+    if user.profile.public:
+        overview = False
     else:
-        return render(request, '404.html')
+        overview = True
     
     markets = {platform : Market.trading_from(platform) for platform in __PLATFORMS__}
     trader = Trader(user, markets)
@@ -124,7 +121,7 @@ def show_overview_profile(request, pk=None):
 
     args = {'user': user, 'overview': overview}
     # get PnL aggregated history
-    cum_pnl_usdt_hist = trader.get_historical_cumulative_PnL(now - timedelta(days=31), now, 'USDT')
+    cum_pnl_usdt_hist = trader.get_historical_cumulative_relative_PnL(now - timedelta(days=31), now, 'USDT')
     cum_pnl_usdt_hist = to_time_series(cum_pnl_usdt_hist)
     args['cum_pnl_usdt_hist'] = cum_pnl_usdt_hist
     # get balance percentage
@@ -199,6 +196,14 @@ def edit_password(request):
 
 
 @login_required
+def show_trading_accounts(request):
+    args = {}
+    tas = TradingAccount.objects.filter(user=request.user)
+    args['tas'] = tas
+    return render(request, 'accounts/trading_accounts.html', args)
+
+
+@login_required
 def add_trading_account(request):
     user = User.objects.get(pk=request.user.id)
     args = {}
@@ -208,10 +213,21 @@ def add_trading_account(request):
         form = AddTradingAccountForm(data=request.POST, user=request.user)
         if form.is_valid():
             form.save()
-            return redirect('edit_profile')
+            messages.success(request, 'Trading account added successfully!')
+            return redirect('trading_accounts')
         else:
+            messages.error(request, 'Invalid API information.')
             return redirect('add_trading_account')
     else:
         form = AddTradingAccountForm(user=request.user)
         args['form'] = form
-        return render(request, 'update_profile.html', args)
+        return render(request, 'accounts/add_trading_account.html', args)
+
+
+@login_required
+def remove_trading_account(request, pk=None):
+    ta = get_object_or_404(TradingAccount, user=request.user, pk=pk)
+    if ta:
+        ta.delete()
+        messages.success(request, 'Trading account succesfully removed.')
+    return redirect('trading_accounts')

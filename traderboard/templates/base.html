@@ -39,7 +39,7 @@
               <!-- Topbar -->
               {% if user.is_authenticated %}
               <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
-                  <a class="navbar-brand" href={% url 'home' %}>CoinMarketLeague</a>
+                  <a class="navbar-brand" href="{% url 'home' %}">CoinMarketLeague</a>
                   <!-- Topbar Navbar -->
                   <ul class="navbar-nav ml-auto">
                       <div class="topbar-divider d-none d-sm-block"></div>
@@ -55,16 +55,16 @@
                           <!-- Dropdown - User Information -->
                           <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in"
                               aria-labelledby="userDropdown">
-                              <a class="dropdown-item" href={% url 'profile' %}>
+                              <a class="dropdown-item" href="{% url 'profile' %}">
                                   <i class="fas fa-user fa-sm fa-fw mr-2 text-gray-400"></i>
                                   Profile
                               </a>
-                              <a class="dropdown-item" href={% url 'settings' %}>
+                              <a class="dropdown-item" href="{% url 'settings' %}">
                                   <i class="fas fa-cogs fa-sm fa-fw mr-2 text-gray-400"></i>
                                   Settings
                               </a>
                               <div class="dropdown-divider"></div>
-                              <a class="dropdown-item" href={% url 'logout' %} data-toggle="modal" data-target="#logoutModal">
+                              <a class="dropdown-item" href="{% url 'logout' %}" data-toggle="modal" data-target="#logoutModal">
                                   <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i>
                                   Logout
                               </a>
@@ -75,7 +75,7 @@
               </nav>
               {% else %}
               <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
-                <a class="navbar-brand" href={% url 'home_out' %}>CoinMarketLeague</a>
+                <a class="navbar-brand" href="{% url 'home_out' %}">CoinMarketLeague</a>
                 <!-- Topbar Navbar -->
                 <ul class="navbar-nav ml-auto">
                     <div class="topbar-divider d-none d-sm-block"></div>
@@ -91,12 +91,12 @@
                         <!-- Dropdown - User Information -->
                         <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in"
                             aria-labelledby="userDropdown">
-                            <a class="dropdown-item" href={% url 'login' %}>
+                            <a class="dropdown-item" href="{% url 'login' %}">
                                 <i class="fas fa-user fa-sm fa-fw mr-2 text-gray-400"></i>
                                 Login
                             </a>
                             <div class="dropdown-divider"></div>
-                            <a class="dropdown-item" href={% url 'register' %}>
+                            <a class="dropdown-item" href="{% url 'register' %}">
                                 <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i>
                                 Sign up
                             </a>
@@ -150,7 +150,7 @@
               <div class="modal-body">Select "Logout" below if you are ready to end your current session.</div>
               <div class="modal-footer">
                   <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
-                  <a class="btn btn-primary" href={% url 'logout' %}>Logout</a>
+                  <a class="btn btn-primary" href="{% url 'logout' %}">Logout</a>
               </div>
           </div>
       </div>

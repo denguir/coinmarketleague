@@ -55,9 +55,12 @@ class EditProfileForm(UserChangeForm):
 
 class AddTradingAccountForm(forms.ModelForm):
     '''Form to link a trading account to your profile'''
-    platform = forms.ChoiceField(choices=list(enumerate(__PLATFORMS__)))
-    api_key = forms.CharField(min_length=64, max_length=64, required=True, help_text='Provide with READ ONLY API key')
-    api_secret = forms.CharField(min_length=64, max_length=64, required=True, help_text='Provide with READ ONLY API secret')
+
+    CHOICES = [("Binance", "Binance")]
+
+    platform = forms.ChoiceField(choices=CHOICES)
+    api_key = forms.CharField(widget=forms.PasswordInput, min_length=64, max_length=64, required=True, help_text='Provide with READ ONLY API key')
+    api_secret = forms.CharField(widget=forms.PasswordInput, min_length=64, max_length=64, required=True, help_text='Provide with READ ONLY API secret')
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
@@ -70,7 +73,7 @@ class AddTradingAccountForm(forms.ModelForm):
             'api_secret'
         )
     
-    def clean_api_key(self):
+    def clean(self):
         api_key = self.cleaned_data['api_key']
         api_secret = self.cleaned_data['api_secret']
         platform = self.cleaned_data['platform']
@@ -85,7 +88,7 @@ class AddTradingAccountForm(forms.ModelForm):
             tc.get_balances()
         except:
             raise forms.ValidationError(u'Invalid api key, api secret pair. Please verify again.')
-        return api_key
+        return self.cleaned_data
 
     def save(self, commit=True):
         ta = TradingAccount(user=self.user, 
