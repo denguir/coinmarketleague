@@ -109,9 +109,24 @@ class Trader(object):
         return pnl_hist
 
 
+    def get_historical_daily_relative_PnL(self, date_from, date_to, base='USDT'):
+        '''Compute relative PnL for each day w.r.t previous day, using formula:
+        PnLPerc(t) = bal(t) - bal(t-1) - dep(t-1, t) + wit(t-1, t) / bal(t-1)'''
+        balance_hist = self.get_historical_balances(date_from, date_to, base)
+        pnl_hist = OrderedDict()
+        if len(balance_hist) > 1:
+            days = list(balance_hist.keys()) # make sure no wholes in days consecutive
+            deposit_hist = [self.get_deposits_value(days[t], days[t+1], base) for t in range(len(days) - 1)]
+            withdrawal_hist = [self.get_withdrawals_value(days[t], days[t+1], base) for t in range(len(days) - 1)]
+            for t in range(1, len(days)):
+                pnl_hist[days[t]] = \
+                    (balance_hist[days[t]] - balance_hist[days[t-1]] - deposit_hist[t-1] + withdrawal_hist[t-1]) / balance_hist[days[t-1]]
+        return pnl_hist
+
+
     def get_historical_cumulative_PnL(self, date_from, date_to, base='USDT'):
-        '''Compute cumulative PnL for each day w.r.t first day, using the formula:
-        cumPnL(t-n, t) = sum(daily_PnL(k) | k = t-n+1 -> t)'''
+        '''Compute cumulative PnL for day_to w.r.t date_from, using the formula:
+        cumPnL(t-n, t) = sum(dailyPnL(k) | k = t-n+1 -> t)'''
         daily_pnl = self.get_historical_daily_PnL(date_from, date_to, base)
         days = daily_pnl.keys()
         cum_pnl = np.cumsum(list(daily_pnl.values()))
@@ -119,20 +134,9 @@ class Trader(object):
 
 
     def get_historical_cumulative_relative_PnL(self, date_from, date_to, base='USDT'):
-        '''Compute cumulative PnL in percent for each day w.r.t first day, using the formula:
-        cumPnLPercent(t-n, t) = cumPnL(t-n, t)/[bal(t-n) + dep(t-n,t) - wit(t-n,t)]'''
-        balance_hist = self.get_historical_balances(date_from, date_to, base)
-        cum_pnl_hist = self.get_historical_cumulative_PnL(date_from, date_to, base)
-        
-        # balance data might not be actually available in the [date_from, date_to] time range
-        # this is why we make sure to extract these data from balance_hist
-        bal_from = list(balance_hist.values())[0]
-        dates = list(balance_hist.keys())
-        deposits = self.get_deposits_value(dates[0], dates[-1], base)
-        withdrawals = self.get_withdrawals_value(dates[0], dates[-1], base)
-
-        days = cum_pnl_hist.keys()
-        cum_pnl = np.array(list(cum_pnl_hist.values()))
-        cum_pnl_percent = np.around(cum_pnl * 100 / (bal_from + deposits - withdrawals), 2)
-        return OrderedDict(zip(days, cum_pnl_percent))
-
+        '''Compute cumulative relative PnL for date_to w.r.t date_from, using the formula:
+        cumPnLPercent(t-n, t) = 100 * prod(1 + dailyPnLPercent(k) | k = t-n+1 -> t) - 100'''
+        daily_pnl = self.get_historical_daily_relative_PnL(date_from, date_to, base)
+        days = daily_pnl.keys()
+        cum_pnl = np.around(100 * np.cumprod(1.0 + np.array(list(daily_pnl.values()))) - 100, 2)
+        return OrderedDict(zip(days, cum_pnl))

@@ -14,5 +14,6 @@ urlpatterns = [
     path('edit-password/', views.edit_password, name='edit_password'),
     path('trading-accounts/', views.show_trading_accounts, name='trading_accounts'),
     path('add-trading-account/', views.add_trading_account, name='add_trading_account'),
-    path('remove-trading-account/<int:pk>/', views.remove_trading_account, name='remove_trading_account')
+    path('remove-trading-account/<int:pk>/', views.remove_trading_account, name='remove_trading_account'),
+    path('edit-settings', views.edit_settings, name='edit_settings'),
     ]

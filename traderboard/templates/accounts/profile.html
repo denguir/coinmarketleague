@@ -491,6 +491,14 @@
 {{ daily_pnl_usdt_hist|json_script:"daily_pnl_usdt_hist" }}
 
 <script type="text/javascript">
+    function round1000(x){
+        if (x > 0) {
+            return Math.ceil(x/1000)*1000;
+        } else {
+            return Math.floor(x/1000)*1000;
+        } 
+    }
+    
     var ctx = document.getElementById("dailyPnLChart");
     var labels = JSON.parse(document.getElementById('daily_pnl_usdt_hist').textContent).labels;
     var data = JSON.parse(document.getElementById('daily_pnl_usdt_hist').textContent).data;
@@ -532,8 +540,8 @@
         }],
         yAxes: [{
             ticks: {
-            min: 0,
-            max: 15000,
+            min: round1000(Math.min(...data)),
+            max: round1000(Math.max(...data)),
             maxTicksLimit: 5,
             padding: 10,
             // Include a dollar sign in the ticks

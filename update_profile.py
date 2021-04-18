@@ -28,10 +28,26 @@ if __name__ == '__main__':
         # get balance details
         balance_details = trader.get_balances()
 
-        # time ranges for PnL
-        day_range = [now - timedelta(hours=30), now - timedelta(hours=24)]
-        week_range = [now - timedelta(days=8), now - timedelta(days=7)]
-        month_range = [now - timedelta(days=31), now - timedelta(days=30)]
+        # get PnL history
+        pnl_hist_usdt = trader.get_historical_cumulative_relative_PnL(now - timedelta(days=30), now, 'USDT')
+
+        # Get pnL data wrt to 24h record 
+        try:
+            daily_pnl = pnl_hist_usdt[datetime.combine(now - timedelta(days=1), datetime.min.time(), timezone.utc)]
+        except KeyError:
+            daily_pnl = None
+        
+        # Get pnL data wrt to 7d record
+        try:
+            weekly_pnl = pnl_hist_usdt[datetime.combine(now - timedelta(days=7), datetime.min.time(), timezone.utc)]
+        except KeyError:
+            weekly_pnl = None
+
+        # Get pnL data wrt to 1m record
+        try:
+            monthly_pnl = pnl_hist_usdt[datetime.combine(now - timedelta(days=30), datetime.min.time(), timezone.utc)]
+        except KeyError:
+            monthly_pnl = None
 
         # Get pnL data wrt to last record 
         try:
@@ -43,37 +59,9 @@ if __name__ == '__main__':
             pnl_btc = None
             pnl_usdt = None
 
-        # Get pnL data wrt to 24h record 
-        try:
-            daily_snap = SnapshotProfile.objects.filter(profile=user.profile)\
-                                                .filter(created_at__range=day_range).latest('created_at')
-            daily_pnl = trader.get_PnL(daily_snap, now, 'USDT')
-        except Exception as e:
-            print(e)
-            daily_pnl = None
-        
-        # Get pnL data wrt to 7d record
-        try:
-            weekly_snap = SnapshotProfile.objects.filter(profile=user.profile)\
-                                            .filter(created_at__range=week_range).latest('created_at')
-            weekkly_pnl = trader.get_PnL(weekly_snap, now, 'USDT')
-        except Exception as e:
-            print(e)
-            weekkly_pnl = None
-
-        # Get pnL data wrt to 1m record
-        try:
-            monthly_snap = SnapshotProfile.objects.filter(profile=user.profile)\
-                                            .filter(created_at__range=month_range).latest('created_at')
-            monthly_pnl = trader.get_PnL(monthly_snap, now, 'USDT')
-        except Exception as e:
-            print(e)
-            monthly_pnl = None
-
-
         # update main ranking metrics
         user.profile.daily_pnl = daily_pnl
-        user.profile.weekly_pnl = weekkly_pnl
+        user.profile.weekly_pnl = weekly_pnl
         user.profile.monthly_pnl = monthly_pnl
         user.save()
 

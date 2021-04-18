@@ -1,9 +1,11 @@
 from sys import platform
 from django import forms
 from django.contrib.auth.models import User
-from traderboard.models import TradingAccount
+from django.forms.widgets import RadioSelect
+from traderboard.models import Profile, TradingAccount
 from TradingClient import TradingClient
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
+from django_toggle_switch_widget.widgets import DjangoToggleSwitchWidget
 
 
 __PLATFORMS__ = ['Binance']
@@ -51,6 +53,14 @@ class EditProfileForm(UserChangeForm):
             'last_name',
             'email',
         )
+
+
+class EditSettingsForm(forms.ModelForm):
+    public = forms.BooleanField(help_text='Put your account on public mode.\
+                                        It implies that other people can see your balance information.')
+    class Meta:
+        model = Profile
+        fields = ('public', )
 
 
 class AddTradingAccountForm(forms.ModelForm):

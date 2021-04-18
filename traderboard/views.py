@@ -1,7 +1,7 @@
 from Trader import Trader
 from Market import Market
 from traderboard.models import Profile, TradingAccount
-from traderboard.forms import AddTradingAccountForm, EditProfileForm, RegistrationForm
+from traderboard.forms import AddTradingAccountForm, EditProfileForm, RegistrationForm, EditSettingsForm
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
@@ -75,7 +75,7 @@ def show_profile(request):
     now = datetime.now(timezone.utc)
 
     # get balance aggregated history
-    balance_usdt_hist = trader.get_historical_balances(now - timedelta(days=31), now, 'USDT')
+    balance_usdt_hist = trader.get_historical_balances(now - timedelta(days=30), now, 'USDT')
     balance_usdt_hist = to_time_series(balance_usdt_hist)
 
     # get balance info now
@@ -90,11 +90,11 @@ def show_profile(request):
     balance_details = to_series(balance_details)
 
     # get daily PnL aggregated history
-    daily_pnl_usdt_hist = trader.get_historical_daily_PnL(now - timedelta(days=31), now, 'USDT')
+    daily_pnl_usdt_hist = trader.get_historical_daily_PnL(now - timedelta(days=30), now, 'USDT')
     daily_pnl_usdt_hist = to_time_series(daily_pnl_usdt_hist)
 
     # get cumulative PnL aggregated history
-    cum_pnl_usdt_hist = trader.get_historical_cumulative_relative_PnL(now - timedelta(days=31), now, 'USDT')
+    cum_pnl_usdt_hist = trader.get_historical_cumulative_relative_PnL(now - timedelta(days=30), now, 'USDT')
     cum_pnl_usdt_hist = to_time_series(cum_pnl_usdt_hist)
     
 
@@ -151,6 +151,26 @@ def show_overview_profile(request, pk=None):
 @login_required
 def show_settings(request):
     return redirect('edit_profile')
+
+
+@login_required
+def edit_settings(request):
+    user = User.objects.get(pk=request.user.id)
+    args = {}
+    args.update(csrf(request))
+    args['user'] = user
+    if request.method == 'POST':
+        form = EditSettingsForm(request.POST, instance=user)
+        if form.is_valid():
+            form.save()
+            return redirect('edit_settings')
+        else:
+            messages.error(request, 'Invalid information provided.')
+            return redirect('edit_settings')
+    else:
+        form = EditSettingsForm(instance=user)
+        args['form'] = form
+        return render(request, 'accounts/edit_settings.html', args)
 
 
 @login_required
