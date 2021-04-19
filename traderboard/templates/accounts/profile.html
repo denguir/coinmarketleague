@@ -86,8 +86,8 @@
                   <div class="row no-gutters align-items-center">
                       <div class="col mr-2">
                           <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                              Total balance (USDT)</div>
-                          <div class="h5 mb-0 font-weight-bold text-gray-800">{{ balance_usdt }} $</div>
+                              Total balance </div>
+                          <div class="h5 mb-0 font-weight-bold text-gray-800">{{ balance }} {{ currency }}</div>
                       </div>
                   </div>
               </div>
@@ -255,12 +255,12 @@
 <script src="{% static 'js/demo/chart-area-demo.js' %}"></script>
 
 
-{{ cum_pnl_usdt_hist|json_script:"cum_pnl_usdt_hist" }}
+{{ cum_pnl_hist|json_script:"cum_pnl_hist" }}
 <script type="text/javascript"> 
     // Area Chart Example
     var ctx = document.getElementById("cumPnLChart");
-    var labels = JSON.parse(document.getElementById('cum_pnl_usdt_hist').textContent).labels;
-    var data = JSON.parse(document.getElementById('cum_pnl_usdt_hist').textContent).data;
+    var labels = JSON.parse(document.getElementById('cum_pnl_hist').textContent).labels;
+    var data = JSON.parse(document.getElementById('cum_pnl_hist').textContent).data;
     var myLineChart = new Chart(ctx, {
         type: 'line',
         data: {
@@ -350,12 +350,12 @@
         });
 </script>
 
-{{ balance_usdt_hist|json_script:"balance_usdt_hist" }}
+{{ balance_hist|json_script:"balance_hist" }}
 <script type="text/javascript"> 
     // Area Chart Example
     var ctx = document.getElementById("balanceChart");
-    var labels = JSON.parse(document.getElementById('balance_usdt_hist').textContent).labels;
-    var data = JSON.parse(document.getElementById('balance_usdt_hist').textContent).data;
+    var labels = JSON.parse(document.getElementById('balance_hist').textContent).labels;
+    var data = JSON.parse(document.getElementById('balance_hist').textContent).data;
     var myLineChart = new Chart(ctx, {
         type: 'line',
         data: {
@@ -462,7 +462,17 @@
         labels: labels,
         datasets: [{
         data: data,
-        backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc'],
+        backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', 
+                    '#FF6633', '#FFB399', '#FF33FF', '#FFFF99', '#00B3E6', 
+                    '#E6B333', '#3366E6', '#999966', '#99FF99', '#B34D4D',
+                    '#80B300', '#809900', '#E6B3B3', '#6680B3', '#66991A', 
+                    '#FF99E6', '#CCFF1A', '#FF1A66', '#E6331A', '#33FFCC',
+                    '#66994D', '#B366CC', '#4D8000', '#B33300', '#CC80CC', 
+                    '#66664D', '#991AFF', '#E666FF', '#4DB3FF', '#1AB399',
+                    '#E666B3', '#33991A', '#CC9999', '#B3B31A', '#00E680', 
+                    '#4D8066', '#809980', '#E6FF80', '#1AFF33', '#999933',
+                    '#FF3380', '#CCCC00', '#66E64D', '#4D80CC', '#9900B3', 
+                    '#E64D66', '#4DB380', '#FF4D4D', '#99E6E6', '#6666FF'],
         hoverBackgroundColor: ['#2e59d9', '#17a673', '#2c9faf'],
         hoverBorderColor: "rgba(234, 236, 244, 1)",
         }],
@@ -488,7 +498,7 @@
     });
 </script>
 
-{{ daily_pnl_usdt_hist|json_script:"daily_pnl_usdt_hist" }}
+{{ daily_pnl_hist|json_script:"daily_pnl_hist" }}
 
 <script type="text/javascript">
     function round1000(x){
@@ -500,8 +510,8 @@
     }
     
     var ctx = document.getElementById("dailyPnLChart");
-    var labels = JSON.parse(document.getElementById('daily_pnl_usdt_hist').textContent).labels;
-    var data = JSON.parse(document.getElementById('daily_pnl_usdt_hist').textContent).data;
+    var labels = JSON.parse(document.getElementById('daily_pnl_hist').textContent).labels;
+    var data = JSON.parse(document.getElementById('daily_pnl_hist').textContent).data;
     var pnlChart = new Chart(ctx, {
     type: 'bar',
     data: {

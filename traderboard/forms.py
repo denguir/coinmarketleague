@@ -1,11 +1,10 @@
-from sys import platform
 from django import forms
 from django.contrib.auth.models import User
-from django.forms.widgets import RadioSelect
+from django.forms.forms import Form
 from traderboard.models import Profile, TradingAccount
 from TradingClient import TradingClient
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
-from django_toggle_switch_widget.widgets import DjangoToggleSwitchWidget
+from datetime import datetime, timedelta, timezone
 
 
 __PLATFORMS__ = ['Binance']
@@ -108,5 +107,3 @@ class AddTradingAccountForm(forms.ModelForm):
         if commit:
             ta.save()
         return ta
-
-

@@ -1,22 +1,33 @@
-from datetime import date, datetime
-from operator import le
+from Market import Market
 from TradingClient import TradingClient
 from traderboard.models import TradingAccount, SnapshotProfile
-from django.db.models.functions import TruncMonth, TruncDay
+from django.db.models.functions import TruncDay
 from collections import OrderedDict
 from django.db.models import Avg
+from utils import to_series, to_time_series
 import numpy as np
 
 
 class Trader(object):
     '''class for every user-level aggregated functions that could be designed.
         This eases future development as well as clean up main script'''
-    def __init__(self, user, markets):
+    def __init__(self, user, markets=None):
         self.user = user
-        self.markets = markets # dict of markets
-        self.tas = TradingAccount.objects.filter(user=user).iterator()
+        self.tas = TradingAccount.objects.filter(user=user)
+        self.markets = self.load_markets(markets)
         self.tcs = [(TradingClient.trading_from(ta), self.markets[ta.platform]) for ta in self.tas]
-    
+
+
+    def load_markets(self, markets):
+        if markets:
+            return markets
+        else:
+            mkt = {}
+            for ta in self.tas:
+                if ta.platform not in mkt.keys():
+                    mkt[ta.platform] = Market.trading_from(ta.platform)
+            return mkt
+
 
     def get_balances(self):
         balances = {}
@@ -80,7 +91,7 @@ class Trader(object):
 
         return balance_hist
 
-
+    
     def get_PnL(self, snap, now, base='USDT'):
         deposits = self.get_deposits_value(snap.created_at, now, base)
         withdrawals = self.get_withdrawals_value(snap.created_at, now, base)
@@ -140,3 +151,30 @@ class Trader(object):
         days = daily_pnl.keys()
         cum_pnl = np.around(100 * np.cumprod(1.0 + np.array(list(daily_pnl.values()))) - 100, 2)
         return OrderedDict(zip(days, cum_pnl))
+
+
+    def get_profile(self, date_from, date_to, base='USDT', overview=True):
+        '''Process all metrics displayed in user's profile'''
+        profile = {'user': self.user, 'currency': base}
+        # get PnL aggregated history
+        cum_pnl_hist = to_time_series(self.get_historical_cumulative_relative_PnL(date_from, date_to, base))
+        profile['cum_pnl_hist'] = cum_pnl_hist
+        # get balance percentage
+        balance_percentage = to_series(self.get_relative_balances(base))
+        profile['balance_percentage'] = balance_percentage
+
+        profile['overview'] = overview
+        # get private information
+        if not overview:
+            # get balance aggregated history
+            balance_hist = to_time_series(self.get_historical_balances(date_from, date_to, base))
+            profile['balance_hist'] = balance_hist
+            # get balance info now
+            balance = round(self.get_balances_value(base), 2)
+            profile['balance'] = balance
+            # get daily pnl
+            daily_pnl_hist = to_time_series(self.get_historical_daily_PnL(date_from, date_to, base))
+            profile['daily_pnl_hist'] = daily_pnl_hist
+        
+        return profile
+
