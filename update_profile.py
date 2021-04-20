@@ -16,6 +16,7 @@ __PLATFORMS__ = ['Binance']
 if __name__ == '__main__':
     # Initialize markets
     now = datetime.now(timezone.utc)
+    today = datetime.combine(now, datetime.min.time(), timezone.utc)
     markets = {platform : Market.trading_from(platform) for platform in __PLATFORMS__}
     users = User.objects.all()
 
@@ -28,24 +29,27 @@ if __name__ == '__main__':
         # get balance details
         balance_details = trader.get_balances()
 
-        # get PnL history
-        pnl_hist_usdt = trader.get_historical_cumulative_relative_PnL(now - timedelta(days=30), now, 'USDT')
-
         # Get pnL data wrt to 24h record 
         try:
-            daily_pnl = pnl_hist_usdt[datetime.combine(now - timedelta(days=1), datetime.min.time(), timezone.utc)]
+            pnl_hist_usdt = trader.get_historical_cumulative_relative_PnL(today - timedelta(days=1), today, 'USDT')
+            first_day_pnl = pnl_hist_usdt[today - timedelta(days=1)] # here only to make sure the time range is respected, should be 0.0
+            daily_pnl = pnl_hist_usdt[today]
         except KeyError:
             daily_pnl = None
         
         # Get pnL data wrt to 7d record
         try:
-            weekly_pnl = pnl_hist_usdt[datetime.combine(now - timedelta(days=7), datetime.min.time(), timezone.utc)]
+            pnl_hist_usdt = trader.get_historical_cumulative_relative_PnL(today - timedelta(days=7), today, 'USDT')
+            first_day_pnl = pnl_hist_usdt[today - timedelta(days=7)] # here only to make sure the time range is respected, should be 0.0
+            weekly_pnl = pnl_hist_usdt[today]
         except KeyError:
             weekly_pnl = None
 
         # Get pnL data wrt to 1m record
         try:
-            monthly_pnl = pnl_hist_usdt[datetime.combine(now - timedelta(days=30), datetime.min.time(), timezone.utc)]
+            pnl_hist_usdt = trader.get_historical_cumulative_relative_PnL(today - timedelta(days=30), today, 'USDT')
+            first_day_pnl = pnl_hist_usdt[today - timedelta(days=30)] # here only to make sure the time range is respected, should be 0.0
+            monthly_pnl = pnl_hist_usdt[today]
         except KeyError:
             monthly_pnl = None
 

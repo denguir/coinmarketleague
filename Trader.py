@@ -75,8 +75,8 @@ class Trader(object):
     def get_historical_balances(self, date_from, date_to, base='USDT'):
         '''returns a historical balance time series aggregated by day'''
         snaps = SnapshotProfile.objects.filter(profile=self.user.profile)\
-                                       .filter(created_at__range=[date_from, date_to])\
                                        .annotate(day=TruncDay('created_at'))\
+                                       .filter(day__range=[date_from, date_to])\
                                        .values('day')
         balance_hist = OrderedDict()
         data = []
@@ -88,7 +88,6 @@ class Trader(object):
 
         for snap in data:
             balance_hist[snap['day']] = float(snap['avg_bal'])
-
         return balance_hist
 
     
@@ -115,6 +114,8 @@ class Trader(object):
             days = list(balance_hist.keys()) # make sure no wholes in days consecutive
             deposit_hist = [self.get_deposits_value(days[t], days[t+1], base) for t in range(len(days) - 1)]
             withdrawal_hist = [self.get_withdrawals_value(days[t], days[t+1], base) for t in range(len(days) - 1)]
+            # pnl computation
+            pnl_hist[days[0]] = 0.0
             for t in range(1, len(days)):
                 pnl_hist[days[t]] = balance_hist[days[t]] - balance_hist[days[t-1]] - deposit_hist[t-1] + withdrawal_hist[t-1]
         return pnl_hist
@@ -129,6 +130,8 @@ class Trader(object):
             days = list(balance_hist.keys()) # make sure no wholes in days consecutive
             deposit_hist = [self.get_deposits_value(days[t], days[t+1], base) for t in range(len(days) - 1)]
             withdrawal_hist = [self.get_withdrawals_value(days[t], days[t+1], base) for t in range(len(days) - 1)]
+            # pnl computation
+            pnl_hist[days[0]] = 0.0
             for t in range(1, len(days)):
                 pnl_hist[days[t]] = \
                     (balance_hist[days[t]] - balance_hist[days[t-1]] - deposit_hist[t-1] + withdrawal_hist[t-1]) / balance_hist[days[t-1]]
