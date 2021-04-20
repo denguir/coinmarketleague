@@ -1,6 +1,6 @@
 from Trader import Trader
 from traderboard.models import Profile, TradingAccount
-from traderboard.forms import AddTradingAccountForm, EditProfileForm, RegistrationForm, EditSettingsForm
+from traderboard.forms import AddTradingAccountForm, EditProfileForm, RegistrationForm, EditSettingsForm, ProfileFilterForm
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
@@ -10,8 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
 from django.template.context_processors import csrf
 from verify_email.email_handler import send_verification_email
-from datetime import date, datetime, timedelta, timezone
-from utils import to_series, to_time_series
+from datetime import datetime, timedelta, timezone
 
 
 def home_out(request):
@@ -67,9 +66,12 @@ def register(request):
 def show_profile(request):
     user = User.objects.get(pk=request.user.id)
     trader = Trader(user)
-    date_from = request.GET.get('date_from', datetime.now(timezone.utc) - timedelta(days=30))
-    date_to = request.GET.get('date_from', datetime.now(timezone.utc))
-    profile = trader.get_profile(date_from, date_to, 'USDT', False)
+    if request.method == 'GET':
+        form = ProfileFilterForm(request.GET)
+        if form.is_valid():
+            profile = trader.get_profile(form['date_from'].value(), form['date_to'].value(), 'USDT', False)
+        else:
+            profile = trader.get_profile(datetime.now(timezone.utc) - timedelta(days=30), datetime.now(timezone.utc), 'USDT', False)
     return render(request, 'accounts/profile.html', profile)
 
 
@@ -77,9 +79,12 @@ def show_profile(request):
 def show_overview_profile(request, pk=None):
     user = get_object_or_404(User, pk=pk)
     trader = Trader(user)
-    date_from = request.GET.get('date_from', datetime.now(timezone.utc) - timedelta(days=30))
-    date_to = request.GET.get('date_from', datetime.now(timezone.utc))
-    profile = trader.get_profile(date_from, date_to, 'USDT', not user.profile.public)
+    if request.method == 'GET':
+        form = ProfileFilterForm(request.GET)
+        if form.is_valid():
+            profile = trader.get_profile(form['date_from'].value(), form['date_to'].value(), 'USDT', not user.profile.public)
+        else:
+            profile = trader.get_profile(datetime.now(timezone.utc) - timedelta(days=30), datetime.now(timezone.utc), 'USDT', not user.profile.public)
     return render(request, 'accounts/profile.html', profile)
 
 
