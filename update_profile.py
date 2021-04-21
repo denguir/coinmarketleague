@@ -32,6 +32,7 @@ if __name__ == '__main__':
         # Get pnL data wrt to 24h record 
         try:
             pnl_hist_usdt = trader.get_historical_cumulative_relative_PnL(today - timedelta(days=1), today, 'USDT')
+            print(pnl_hist_usdt)
             first_day_pnl = pnl_hist_usdt[today - timedelta(days=1)] # here only to make sure the time range is respected, should be 0.0
             daily_pnl = pnl_hist_usdt[today]
         except KeyError:
@@ -40,6 +41,7 @@ if __name__ == '__main__':
         # Get pnL data wrt to 7d record
         try:
             pnl_hist_usdt = trader.get_historical_cumulative_relative_PnL(today - timedelta(days=7), today, 'USDT')
+            print(pnl_hist_usdt)
             first_day_pnl = pnl_hist_usdt[today - timedelta(days=7)] # here only to make sure the time range is respected, should be 0.0
             weekly_pnl = pnl_hist_usdt[today]
         except KeyError:
@@ -48,6 +50,7 @@ if __name__ == '__main__':
         # Get pnL data wrt to 1m record
         try:
             pnl_hist_usdt = trader.get_historical_cumulative_relative_PnL(today - timedelta(days=30), today, 'USDT')
+            print(pnl_hist_usdt)
             first_day_pnl = pnl_hist_usdt[today - timedelta(days=30)] # here only to make sure the time range is respected, should be 0.0
             monthly_pnl = pnl_hist_usdt[today]
         except KeyError:

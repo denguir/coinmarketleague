@@ -19,7 +19,7 @@ import traderboard.views as views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('accounts/', include('traderboard.urls')),
+    path('', include('traderboard.urls')),
     path('verification/', include('verify_email.urls')),
     path('', views.home_out, name='home_out'),
 ]
