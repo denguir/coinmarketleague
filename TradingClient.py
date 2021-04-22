@@ -68,6 +68,11 @@ class BinanceTradingClient(TradingClient):
         deposits = {dep['asset'] : float(dep['amount']) for dep in info['depositList']}
         return deposits
 
+    def get_daily_deposits(self, date_from, date_to, market):
+        # daily aggregated deposits value
+        # return: {day: {dep['asset'] : get_value(float(dep['amount']) for dep in info['depositList']})}
+        pass
+
     def get_withdrawals(self, date_from, date_to, market):
         start = market.to_timestamp(date_from)
         end = market.to_timestamp(date_to)
