@@ -53,9 +53,10 @@ def show_profile(request):
     if request.method == 'GET':
         form = ProfileFilterForm(request.GET)
         if form.is_valid():
+            print(form.cleaned_data['date_from'])
             profile = trader.get_profile(form['date_from'].value(), form['date_to'].value(), 'USDT', False)
         else:
-            profile = trader.get_profile(datetime.now(timezone.utc) - timedelta(days=30), datetime.now(timezone.utc), 'USDT', False)
+            profile = trader.get_profile(datetime.now(timezone.utc) - timedelta(days=7), datetime.now(timezone.utc), 'USDT', False)
     return render(request, 'accounts/profile.html', profile)
 
 
@@ -68,7 +69,7 @@ def show_overview_profile(request, pk=None):
         if form.is_valid():
             profile = trader.get_profile(form['date_from'].value(), form['date_to'].value(), 'USDT', not user.profile.public)
         else:
-            profile = trader.get_profile(datetime.now(timezone.utc) - timedelta(days=30), datetime.now(timezone.utc), 'USDT', not user.profile.public)
+            profile = trader.get_profile(datetime.now(timezone.utc) - timedelta(days=7), datetime.now(timezone.utc), 'USDT', not user.profile.public)
     return render(request, 'accounts/profile.html', profile)
 
 
