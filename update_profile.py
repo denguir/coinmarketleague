@@ -29,6 +29,27 @@ if __name__ == '__main__':
         # get balance details
         balance_details = trader.get_balances()
 
+        # Get pnL data wrt to last record 
+        try:
+            last_snap = SnapshotProfile.objects.filter(profile=user.profile).latest('created_at')
+            pnl_btc = trader.get_PnL(last_snap, now, 'BTC')
+            pnl_usdt = trader.get_PnL(last_snap, now, 'USDT')
+        except Exception as e:
+            print(e)
+            pnl_btc = None
+            pnl_usdt = None
+
+
+        # save profile snapshot
+        snap = SnapshotProfile(profile=user.profile, balance_btc=balance_btc, 
+                                balance_usdt=balance_usdt, pnl_btc=pnl_btc, pnl_usdt=pnl_usdt)
+        snap.save()
+
+        # save profile details
+        for asset, amount in balance_details.items():
+            details = SnapshotProfileDetails(snapshot=snap, asset=asset, amount=amount)
+            details.save()
+
         # Get pnL data wrt to 24h record 
         try:
             pnl_hist_usdt = trader.get_historical_cumulative_relative_PnL(today - timedelta(days=1), today, 'USDT')
@@ -55,31 +76,9 @@ if __name__ == '__main__':
             monthly_pnl = pnl_hist_usdt[today]
         except KeyError:
             monthly_pnl = None
-
-        # Get pnL data wrt to last record 
-        try:
-            last_snap = SnapshotProfile.objects.filter(profile=user.profile).latest('created_at')
-            pnl_btc = trader.get_PnL(last_snap, now, 'BTC')
-            pnl_usdt = trader.get_PnL(last_snap, now, 'USDT')
-        except Exception as e:
-            print(e)
-            pnl_btc = None
-            pnl_usdt = None
-
+        
         # update main ranking metrics
         user.profile.daily_pnl = daily_pnl
         user.profile.weekly_pnl = weekly_pnl
         user.profile.monthly_pnl = monthly_pnl
         user.save()
-
-        # save profile snapshot
-        snap = SnapshotProfile(profile=user.profile, balance_btc=balance_btc, 
-                                balance_usdt=balance_usdt, pnl_btc=pnl_btc, pnl_usdt=pnl_usdt)
-        snap.save()
-
-        # save profile details
-        for asset, amount in balance_details.items():
-            details = SnapshotProfileDetails(snapshot=snap, asset=asset, amount=amount)
-            details.save()
-        
-

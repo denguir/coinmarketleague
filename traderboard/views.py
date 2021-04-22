@@ -1,6 +1,7 @@
 from Trader import Trader
 from traderboard.models import Profile, TradingAccount
-from traderboard.forms import AddTradingAccountForm, EditProfileForm, RegistrationForm, EditSettingsForm, ProfileFilterForm
+from traderboard.forms import \
+    AddTradingAccountForm, EditProfileForm, RegistrationForm, EditSettingsForm, ProfileFilterForm
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
@@ -9,12 +10,12 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
 from django.template.context_processors import csrf
-from verify_email.email_handler import send_verification_email
 from datetime import datetime, timedelta, timezone
+from verify_email.email_handler import send_verification_email
 
 
 def home_out(request):
-    # home page for logged out visitors
+    '''home page for visitors'''
     order_by = request.GET.get('order_by', 'daily_pnl')
     traders = enumerate(Profile.objects.order_by(order_by).reverse(), start=1)
     return render(request, 'index.html', {'traders': traders})
@@ -22,7 +23,7 @@ def home_out(request):
 
 @login_required
 def home(request):
-    # home page for logged in visitors
+    '''home page for logged in users'''
     user = request.user
     order_by = request.GET.get('order_by', 'daily_pnl')
     traders = enumerate(Profile.objects.order_by(order_by).reverse(), start=1)
@@ -36,30 +37,13 @@ def register(request):
         form = RegistrationForm(request.POST)
         args['form'] = form
         if form.is_valid():
-            form.save()
-            return redirect('home')
+            inactive_user = send_verification_email(request, form)
+            return render(request, 'accounts/activate_account_done.html')
         else:
             return render(request, 'accounts/register.html', args)
     else:
         args['form'] = RegistrationForm()
         return render(request, 'accounts/register.html', args)
-
-
-# see: https://pypi.org/project/Django-Verify-Email/
-# def register(request):
-#     args = {}
-#     args.update(csrf(request))
-#     if request.method == 'POST':
-#         form = RegistrationForm(request.POST)
-#         args['form'] = form
-#         if form.is_valid():
-#             inactive_user = send_verification_email(request, form)
-#             return redirect('home')
-#         else:
-#             return render('accounts/register.html', args)
-#     else:
-#         args['form'] = RegistrationForm()
-#         return render('accounts/register.html', args)
 
 
 @login_required

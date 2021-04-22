@@ -29,6 +29,12 @@ class RegistrationForm(UserCreationForm):
             raise forms.ValidationError(u'This username is already used. Please choose another one.')
         return username
 
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        if email and User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError(u'This email address is already used. Please choose another one.')
+        return email
+
     def save(self, commit=True):
         user = super(RegistrationForm, self).save(commit=False)
         user.first_name = self.cleaned_data['first_name']
