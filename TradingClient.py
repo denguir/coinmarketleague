@@ -23,27 +23,19 @@ class TradingClient(ABC):
         self.ta = ta
 
     @abstractmethod
-    def get_balances(self) -> dict:
+    def get_balances(self) -> pd.DataFrame:
         pass
 
     @abstractmethod
-    def get_relative_balances(self, market: Market) -> dict:
+    def get_deposits(self, date_from: datetime, date_to: datetime, market: Market) -> pd.DataFrame:
         pass
 
     @abstractmethod
-    def get_value(self, balances: dict, market: Market, base: str) -> float:
+    def get_withdrawals(self, date_from: datetime, date_to: datetime, market: Market) -> pd.DataFrame:
         pass
 
     @abstractmethod
-    def get_deposits(self, date_from: datetime, date_to: datetime, market: Market) -> list:
-        pass
-
-    @abstractmethod
-    def get_withdrawals(self, date_from: datetime, date_to: datetime, market: Market) -> list:
-        pass
-
-    @abstractmethod
-    def get_PnL(self, snap_from: SnapshotAccount, snap_to: SnapshotAccount, market: Market, base: str) -> float:
+    def get_value_table(self, balances: pd.DataFrame, market: Market, base: str) -> pd.DataFrame:
         pass
 
 
@@ -59,83 +51,62 @@ class BinanceTradingClient(TradingClient):
     def get_balances(self):
         # only for spot account
         info = self.client.get_account()
-        balances = {bal['asset'] : float(bal['free']) + float(bal['locked']) for bal in info['balances']}
-        return balances
+        balances = pd.DataFrame(info['balances'])
+        balances['amount'] = balances['free'].astype(float) + balances['locked'].astype(float)
+        return balances[['asset', 'amount']]
 
     def get_deposits(self, date_from, date_to, market):
         start = market.to_timestamp(date_from)
         end = market.to_timestamp(date_to)
         info = self.client.get_deposit_history(startTime=start, endTime=end, status=1)['depositList']
+        deposits = pd.DataFrame(columns=['time', 'asset', 'amount'])
         if info:
             deposits = pd.DataFrame(info)
-            deposits = deposits.groupby(['asset'])['amount'].sum().to_dict()
-        else:
-            deposits = {}
-        return deposits
-
-    def get_daily_deposits(self, date_from, date_to, market):
-        # daily aggregated deposits
-        start = market.to_timestamp(date_from)
-        end = market.to_timestamp(date_to)
-        deposits = self.client.get_deposit_history(startTime=start, endTime=end, status=1)['depositList']
-        df = pd.DataFrame(deposits)
-        df['date'] = df['insertTime'].apply(market.to_date)
-        deposits = df.groupby(['date', 'asset'])['amount'].sum().to_dict()
+            deposits['time'] = deposits['insertTime']
+            deposits = deposits[['time', 'asset', 'amount']]
         return deposits
 
     def get_withdrawals(self, date_from, date_to, market):
         start = market.to_timestamp(date_from)
         end = market.to_timestamp(date_to)
         info = self.client.get_withdraw_history(startTime=start, endTime=end, status=6)['withdrawList']
+        withdrawals = pd.DataFrame(columns=['time', 'asset', 'amount'])
         if info:
             withdrawals = pd.DataFrame(info)
-            withdrawals = withdrawals.groupby(['asset'])['amount'].sum().to_dict()
-        else:
-            withdrawals = {}
+            withdrawals['time'] = withdrawals['applyTime']
+            withdrawals = withdrawals[['time', 'asset', 'amount']]
         return withdrawals
 
-    def get_asset_btc_value(self, asset, market):
-        try:
-            try:
-                if asset == 'BTC':
-                    btc_price = 1.0
-                else:
-                    btc_price = market.table[asset + 'BTC']
-            except KeyError:
-                btc_price = 1.0 / market.table['BTC' + asset]
-        except KeyError:
-            # asset not available on platform
-            btc_price = 0.0
-        return btc_price
-
-    def get_asset_value(self, asset, market, base='USDT'):
-        base = base.upper()
-        btc_value = self.get_asset_btc_value(asset, market)
-        if base == 'BTC':
-            market_price = 1.0
-        else:
-            try:
-                market_price = market.table['BTC' + base]
-            except KeyError:
-                market_price = market.table[base + 'BTC']
-        market_value = btc_value * market_price
-        return market_value
-           
-    def get_value(self, balances, market, base='USDT'):
-        # balances is a dict of the form {asset: amount}:
-        # could be balances, deposits, withdrawals
-        value = 0.0
-        for asset in balances.keys():
-            value += (balances[asset] * self.get_asset_value(asset, market, base))
-        return value
+    def get_value_table(self, balances, market, base='USDT'):
+        '''Compute the value of a balances, deposits or withdrawals DataFrame
+            using the market price. We search for the symbol assetBASE and the reverse
+            symbol BASEasset in case the former does not exist'''
+        symbol = 'asset' + base
+        reverse_symbol = base + 'asset'
+        balances[symbol] = balances['asset'].apply(lambda x: x + base)
+        balances[reverse_symbol] = balances['asset'].apply(lambda x: base + x)
+        mkt = balances.merge(market.table, how='left', left_on=symbol, right_on='symbol')
+        mkt.loc[mkt[symbol] == base + base, 'price'] = 1.0
+        mkt = mkt[mkt['price'].notna()]
+        reverse_mkt = balances.merge(market.table, how='left', left_on=reverse_symbol, right_on='symbol')
+        reverse_mkt = reverse_mkt[reverse_mkt['price'].notna()]
+        reverse_mkt['price'] = 1.0 / reverse_mkt['price']
+        mkt = pd.concat([mkt, reverse_mkt])
+        mkt['value'] = mkt['amount'] * mkt['price']
+        return mkt
     
-    def get_relative_balances(self, market, base='USDT'):
-        balances = self.get_balances()
-        total_value = self.get_value(balances, market, base)
-        for asset, amount in balances.items():
-            val = self.get_asset_value(asset, market, base)
-            balances[asset] = amount * val / total_value
-        return balances
+    def get_value(self, balances, market, base='USDT'):
+        '''Return the sum of the value table of either a
+        deposits, withdrawals or balances dataFrame'''
+        mkt = self.get_value_table(balances, market, base)
+        return sum(mkt['value'])
+
+    def get_daily_value(self, balances, market, base='USDT'):
+        '''Return the daily aggregated sum of the value table of time-aware
+        DataFrame -> either a deposits or withdrawals dataFrame'''
+        mkt = self.get_value_table(balances, market, base)
+        mkt['day'] = mkt['time'].apply(market.to_date)
+        return mkt.groupby('day')['value'].sum().to_dict()
 
     def get_balances_value(self, market, base='USDT'):
         balances = self.get_balances()
@@ -144,22 +115,23 @@ class BinanceTradingClient(TradingClient):
     def get_deposits_value(self, date_from, date_to, market, base='USDT'):
         deposits = self.get_deposits(date_from, date_to, market)
         return self.get_value(deposits, market, base)
-    
+
+    def get_daily_deposits_value(self, date_from, date_to, market, base='USDT'):
+        deposits = self.get_deposits(date_from, date_to, market)
+        return self.get_daily_value(deposits, market, base)
+
     def get_withdrawals_value(self, date_from, date_to, market, base='USDT'):
         withdrawals = self.get_withdrawals(date_from, date_to, market)
         return self.get_value(withdrawals, market, base)
 
-    def get_PnL(self, snap_from, snap_to, market, base='USDT'):
-        if base == 'BTC':
-            balance_from = snap_from.balance_btc
-            balance_to = snap_to.balance_btc
-        else:
-            balance_from = snap_from.balance_usdt
-            balance_to = snap_to.balance_usdt
-        
-        deposits = self.get_deposits_value(snap_from.created_at, snap_to.created_at, market, base)
-        withdrawals = self.get_withdrawals_value(snap_from.created_at, snap_to.created_at, market, base)
-        pnl = (balance_to - deposits + withdrawals - balance_from) / balance_from
-        return pnl
+    def get_daily_withdrawals_value(self, date_from, date_to, market, base='USDT'):
+        withdrawals = self.get_withdrawals(date_from, date_to, market)
+        return self.get_daily_value(withdrawals, market, base)
+
+    def get_daily_deposits_value(self, date_from, date_to, market, base='USDT'):
+        deposits = self.get_deposits(date_from, date_to, market)
+        mkt = self.get_value_table(deposits, market, base)
+        mkt['day'] = mkt['time'].apply(market.to_date)
+        return mkt.groupby('day')['value'].sum().to_dict()
 
 
