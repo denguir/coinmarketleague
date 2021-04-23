@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from abc import ABC, abstractmethod
 from binance.client import Client as BinanceClient
 
@@ -28,6 +28,14 @@ class Market(ABC):
         pass
 
     @abstractmethod
+    def to_datetime(self, timestamp: int) -> datetime:
+        pass
+
+    @abstractmethod
+    def to_date(self, timestamp: int) -> datetime:
+        pass
+
+    @abstractmethod
     def get_price_table(self) -> dict:
         pass
 
@@ -52,6 +60,17 @@ class BinanceMarket(Market):
         # convert server time to UTC time, in ms
         ts = int(date.timestamp() * 1000 + self.timestamp_offset)
         return ts
+
+    def to_datetime(self, timestamp):
+        # convert server timestamp to UTC datetime object
+        ts = timestamp / 1000 # convert is seconds
+        date = datetime.fromtimestamp(ts, timezone.utc)
+        return date
+    
+    def to_date(self, timestamp):
+        # convert server timestamp to UTC date-like object
+        date = self.to_datetime(timestamp)
+        return datetime.combine(date, datetime.min.time(), timezone.utc)
 
     def get_price_table(self):
         prices = self.client.get_all_tickers()

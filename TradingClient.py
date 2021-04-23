@@ -1,7 +1,8 @@
-from datetime import datetime, timedelta
+import pandas as pd
+from datetime import datetime
 from abc import ABC, abstractmethod
 from binance.client import Client as BinanceClient
-from traderboard.models import TradingAccount, SnapshotAccount
+from traderboard.models import SnapshotAccount
 from Market import Market
 
 __PLATFORMS__ = ['Binance']
@@ -64,21 +65,26 @@ class BinanceTradingClient(TradingClient):
     def get_deposits(self, date_from, date_to, market):
         start = market.to_timestamp(date_from)
         end = market.to_timestamp(date_to)
-        info = self.client.get_deposit_history(startTime=start, endTime=end, status=1)
-        deposits = {dep['asset'] : float(dep['amount']) for dep in info['depositList']}
-        return deposits
+        info = self.client.get_deposit_history(startTime=start, endTime=end, status=1)['depositList']
+        deposits = pd.DataFrame(info)
+        return deposits.groupby(['asset'])['amount'].sum().to_dict()
 
     def get_daily_deposits(self, date_from, date_to, market):
-        # daily aggregated deposits value
-        # return: {day: {dep['asset'] : get_value(float(dep['amount']) for dep in info['depositList']})}
-        pass
+        # daily aggregated deposits
+        start = market.to_timestamp(date_from)
+        end = market.to_timestamp(date_to)
+        deposits = self.client.get_deposit_history(startTime=start, endTime=end, status=1)['depositList']
+        df = pd.DataFrame(deposits)
+        df['date'] = df['insertTime'].apply(market.to_date)
+        deposits = df.groupby(['date', 'asset'])['amount'].sum().to_dict()
+        return deposits
 
     def get_withdrawals(self, date_from, date_to, market):
         start = market.to_timestamp(date_from)
         end = market.to_timestamp(date_to)
-        info = self.client.get_withdraw_history(startTime=start, endTime=end, status=6)
-        withdrawals = {wit['asset'] : float(wit['amount']) for wit in info['withdrawList']}
-        return withdrawals
+        info = self.client.get_withdraw_history(startTime=start, endTime=end, status=6)['withdrawList']
+        withdrawals = pd.DataFrame(info)
+        return withdrawals.groupby(['asset'])['amount'].sum().to_dict()
 
     def get_asset_btc_value(self, asset, market):
         try:
