@@ -66,8 +66,12 @@ class BinanceTradingClient(TradingClient):
         start = market.to_timestamp(date_from)
         end = market.to_timestamp(date_to)
         info = self.client.get_deposit_history(startTime=start, endTime=end, status=1)['depositList']
-        deposits = pd.DataFrame(info)
-        return deposits.groupby(['asset'])['amount'].sum().to_dict()
+        if info:
+            deposits = pd.DataFrame(info)
+            deposits = deposits.groupby(['asset'])['amount'].sum().to_dict()
+        else:
+            deposits = {}
+        return deposits
 
     def get_daily_deposits(self, date_from, date_to, market):
         # daily aggregated deposits
@@ -83,8 +87,12 @@ class BinanceTradingClient(TradingClient):
         start = market.to_timestamp(date_from)
         end = market.to_timestamp(date_to)
         info = self.client.get_withdraw_history(startTime=start, endTime=end, status=6)['withdrawList']
-        withdrawals = pd.DataFrame(info)
-        return withdrawals.groupby(['asset'])['amount'].sum().to_dict()
+        if info:
+            withdrawals = pd.DataFrame(info)
+            withdrawals = withdrawals.groupby(['asset'])['amount'].sum().to_dict()
+        else:
+            withdrawals = {}
+        return withdrawals
 
     def get_asset_btc_value(self, asset, market):
         try:

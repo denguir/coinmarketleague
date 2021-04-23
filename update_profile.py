@@ -35,7 +35,7 @@ if __name__ == '__main__':
             pnl_btc = trader.get_PnL(last_snap, now, 'BTC')
             pnl_usdt = trader.get_PnL(last_snap, now, 'USDT')
         except Exception as e:
-            print(f'No PnL can be computed for user id {user.pk}.\n Root error: {e}')
+            print(f'No PnL can be computed for user id {user.pk}.\nRoot error: {e}')
             pnl_btc = None
             pnl_usdt = None
 
@@ -54,7 +54,7 @@ if __name__ == '__main__':
             pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=1), today, 'USDT')
             first_day_pnl = pnl_hist_usdt[today - timedelta(days=1)] # here only to make sure the time range is respected, should be 0.0
             daily_pnl = pnl_hist_usdt[today]
-        except KeyError:
+        except:
             daily_pnl = None
         
         # Get pnL data wrt to 7d record
@@ -62,7 +62,7 @@ if __name__ == '__main__':
             pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=7), today, 'USDT')
             first_day_pnl = pnl_hist_usdt[today - timedelta(days=7)] # here only to make sure the time range is respected, should be 0.0
             weekly_pnl = pnl_hist_usdt[today]
-        except KeyError:
+        except:
             weekly_pnl = None
 
         # Get pnL data wrt to 1m record
@@ -70,7 +70,7 @@ if __name__ == '__main__':
             pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=30), today, 'USDT')
             first_day_pnl = pnl_hist_usdt[today - timedelta(days=30)] # here only to make sure the time range is respected, should be 0.0
             monthly_pnl = pnl_hist_usdt[today]
-        except KeyError:
+        except:
             monthly_pnl = None
         
         # update main ranking metrics
