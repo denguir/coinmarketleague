@@ -1,3 +1,4 @@
+from datetime import date
 from Market import Market
 from TradingClient import TradingClient
 from traderboard.models import TradingAccount, SnapshotProfile
@@ -31,7 +32,8 @@ class Trader(object):
     def get_balances(self):
         balances = {}
         for tc, _ in self.tcs:
-            tc_bal = tc.get_balances().to_dict()
+            tc_bal = tc.get_balances()
+            tc_bal = {asset: amount for asset, amount in zip(tc_bal['asset'], tc_bal['amount'])}
             for asset, amount in tc_bal.items():
                 if asset in balances.keys():
                     balances[asset] += amount
@@ -67,7 +69,7 @@ class Trader(object):
         return sum(tc.get_deposits_value(date_from, date_to, market, base) for tc, market in self.tcs)
 
 
-    def get_daily_deposits_value(self, date_from, date_to, market, base='USDT'):
+    def get_daily_deposits_value(self, date_from, date_to, base='USDT'):
         deposits = {}
         for tc, market in self.tcs:
             tc_dep = tc.get_daily_deposits_value(date_from, date_to, market, base)
@@ -83,7 +85,7 @@ class Trader(object):
         return sum(tc.get_withdrawals_value(date_from, date_to, market, base) for tc, market in self.tcs)
 
 
-    def get_daily_withdrawals_value(self, date_from, date_to, market, base='USDT'):
+    def get_daily_withdrawals_value(self, date_from, date_to, base='USDT'):
         withdrawals = {}
         for tc, market in self.tcs:
             tc_wit = tc.get_daily_withdrawals_value(date_from, date_to, market, base)
@@ -104,7 +106,7 @@ class Trader(object):
         balance_hist = OrderedDict()
         data = []
         if base == 'USDT':
-                data = snaps.annotate(avg_bal=Avg('balance_usdt')).order_by('day')
+            data = snaps.annotate(avg_bal=Avg('balance_usdt')).order_by('day')
 
         elif base == 'BTC':
             data = snaps.annotate(avg_bal=Avg('balance_btc')).order_by('day')
@@ -131,35 +133,41 @@ class Trader(object):
     def get_daily_PnL(self, date_from, date_to, base='USDT'):
         '''Compute PnL for each day w.r.t previous day, using the formula:
         PnL(t) = bal(t) - [bal(t-1) + dep(t-1, t) - wit(t-1, t)]'''
-        balance_hist = self.get_daily_balances(date_from, date_to, base)
         pnl_hist = OrderedDict()
-        if len(balance_hist) > 1:
-            days = list(balance_hist.keys()) # make sure no wholes in days consecutive
-            # these two line of codes are the bottleneck -> too much request to API
-            deposit_hist = [self.get_deposits_value(days[t], days[t+1], base) for t in range(len(days) - 1)]
-            withdrawal_hist = [self.get_withdrawals_value(days[t], days[t+1], base) for t in range(len(days) - 1)]
-            # pnl computation
-            pnl_hist[days[0]] = 0.0
-            for t in range(1, len(days)):
-                pnl_hist[days[t]] = balance_hist[days[t]] - balance_hist[days[t-1]] - deposit_hist[t-1] + withdrawal_hist[t-1]
+        balance_hist = self.get_daily_balances(date_from, date_to, base)
+        days = list(balance_hist.keys())
+        deposit_hist = self.get_daily_deposits_value(date_from, date_to, base)
+        withdrawal_hist = self.get_daily_withdrawals_value(date_from, date_to, base)
+        
+        for t in range(len(days)):
+            if t == 0:
+                pnl_hist[days[t]] = 0.0
+            else:
+                dep = deposit_hist.get(days[t], 0.0)
+                wit = withdrawal_hist.get(days[t], 0.0)
+                pnl_hist[days[t]] = balance_hist[days[t]] - balance_hist[days[t-1]] - dep + wit
         return pnl_hist
 
 
     def get_daily_relative_PnL(self, date_from, date_to, base='USDT'):
         '''Compute relative PnL for each day w.r.t previous day, using formula:
         PnLPerc(t) = bal(t) - bal(t-1) - dep(t-1, t) + wit(t-1, t) / bal(t-1)'''
-        balance_hist = self.get_daily_balances(date_from, date_to, base)
         pnl_hist = OrderedDict()
-        if len(balance_hist) > 1:
-            days = list(balance_hist.keys()) # make sure no wholes in days consecutive
-            # these two line of codes are the bottleneck -> too much request to API
-            deposit_hist = [self.get_deposits_value(days[t], days[t+1], base) for t in range(len(days) - 1)]
-            withdrawal_hist = [self.get_withdrawals_value(days[t], days[t+1], base) for t in range(len(days) - 1)]
-            # pnl computation
-            pnl_hist[days[0]] = 0.0
-            for t in range(1, len(days)):
-                pnl_hist[days[t]] = \
-                    (balance_hist[days[t]] - balance_hist[days[t-1]] - deposit_hist[t-1] + withdrawal_hist[t-1]) / balance_hist[days[t-1]]
+        balance_hist = self.get_daily_balances(date_from, date_to, base)
+        days = list(balance_hist.keys())
+        deposit_hist = self.get_daily_deposits_value(date_from, date_to, base)
+        withdrawal_hist = self.get_daily_withdrawals_value(date_from, date_to, base)
+
+        for t in range(len(days)):
+            if t == 0:
+                pnl_hist[days[t]] = 0.0
+            else:
+                dep = deposit_hist.get(days[t], 0.0)
+                wit = withdrawal_hist.get(days[t], 0.0)
+                try:
+                    pnl_hist[days[t]] = (balance_hist[days[t]] - balance_hist[days[t-1]] - dep + wit) / balance_hist[days[t-1]]
+                except ZeroDivisionError:
+                    pnl_hist[days[t]] = 0.0
         return pnl_hist
 
 
