@@ -113,6 +113,7 @@ class Trader(object):
         pnl_hist = OrderedDict()
         if len(balance_hist) > 1:
             days = list(balance_hist.keys()) # make sure no wholes in days consecutive
+            print(days)
             # these two line of codes are the bottleneck -> too much request to API
             deposit_hist = [self.get_deposits_value(days[t], days[t+1], base) for t in range(len(days) - 1)]
             withdrawal_hist = [self.get_withdrawals_value(days[t], days[t+1], base) for t in range(len(days) - 1)]
