@@ -104,6 +104,7 @@ class BinanceTradingClient(TradingClient):
     def get_daily_value(self, balances, market, base='USDT'):
         '''Return the daily aggregated sum of the value table of time-aware
         DataFrame -> either a deposits or withdrawals dataFrame'''
+        assert('time' in balances.columns(), "Input DataFrame needs time col.")
         mkt = self.get_value_table(balances, market, base)
         mkt['day'] = mkt['time'].apply(market.to_date)
         return mkt.groupby('day')['value'].sum().to_dict()

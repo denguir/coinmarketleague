@@ -6,12 +6,10 @@ from collections import OrderedDict
 from django.db.models import Avg
 from utils import to_series, to_time_series
 import numpy as np
-import time
 
 
 class Trader(object):
-    '''class for every user-level aggregated functions that could be designed.
-        This eases future development as well as clean up main script'''
+    '''Class for every user-level aggregated functions that could be designed.'''
     def __init__(self, user, markets=None):
         self.user = user
         self.tas = TradingAccount.objects.filter(user=user)
@@ -33,7 +31,7 @@ class Trader(object):
     def get_balances(self):
         balances = {}
         for tc, _ in self.tcs:
-            tc_bal = tc.get_balances()
+            tc_bal = tc.get_balances().to_dict()
             for asset, amount in tc_bal.items():
                 if asset in balances.keys():
                     balances[asset] += amount
@@ -42,22 +40,22 @@ class Trader(object):
         balances = {asset: amount for asset, amount in balances.items() if amount > 1e-8}
         return balances
     
-
+    
     def get_relative_balances(self, base='USDT'):
+        total = 0.0
         balances = {}
         for tc, market in self.tcs:
             tc_bal = tc.get_balances()
-            for asset, amount in tc_bal.items():
-                val = tc.get_asset_value(asset, market, base)
+            value_table = tc.get_value_table(tc_bal, market, base)
+            total += sum(value_table['value'])
+            tc_value = value_table.groupby('asset')['value'].sum().to_dict()
+            for asset, value in tc_value.items():
                 if asset in balances.keys():
-                    balances[asset] += (amount * val)
+                    balances[asset] += value
                 else:
-                    balances[asset] = amount * val
-        total = sum(balances.values())
+                    balances[asset] = value
         if total > 0.0:
-            balances = {asset: round(amount*100/total, 2) for asset, amount in balances.items() if amount > 1e-8}
-        else:
-            balances = {}
+            balances = {asset: round(value*100/total, 2) for asset, value in balances.items() if value > 1e-8}
         return balances
 
 
@@ -69,8 +67,32 @@ class Trader(object):
         return sum(tc.get_deposits_value(date_from, date_to, market, base) for tc, market in self.tcs)
 
 
+    def get_daily_deposits_value(self, date_from, date_to, market, base='USDT'):
+        deposits = {}
+        for tc, market in self.tcs:
+            tc_dep = tc.get_daily_deposits_value(date_from, date_to, market, base)
+            for date, value in tc_dep.items():
+                if date in deposits.keys():
+                    deposits[date] += value
+                else:
+                    deposits[date] = value
+        return deposits
+
+
     def get_withdrawals_value(self, date_from, date_to, base='USDT'):
         return sum(tc.get_withdrawals_value(date_from, date_to, market, base) for tc, market in self.tcs)
+
+
+    def get_daily_withdrawals_value(self, date_from, date_to, market, base='USDT'):
+        withdrawals = {}
+        for tc, market in self.tcs:
+            tc_wit = tc.get_daily_withdrawals_value(date_from, date_to, market, base)
+            for date, value in tc_wit.items():
+                if date in withdrawals.keys():
+                    withdrawals[date] += value
+                else:
+                    withdrawals[date] = value
+        return withdrawals
 
 
     def get_daily_balances(self, date_from, date_to, base='USDT'):
