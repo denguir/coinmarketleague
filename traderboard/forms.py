@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from traderboard.models import Profile, TradingAccount
 from TradingClient import TradingClient
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 
 __PLATFORMS__ = ['Binance']
@@ -124,11 +124,12 @@ class ProfileFilterForm(forms.Form):
         try:
             date_from = datetime.combine(self.cleaned_data['date_from'], datetime.min.time(), timezone.utc)
             date_to = datetime.combine(self.cleaned_data['date_to'], datetime.min.time(), timezone.utc)
-        except:
+        except Exception as e:
+            print(e)
             raise forms.ValidationError(u'Unvalid date format.')
 
         if date_from >= date_to:
-            raise forms.ValidationError(u'<Date from> must be lower than <Date to>.')
+            raise forms.ValidationError(u'<Date to> must be after <Date from>.')
         
         self.cleaned_data['date_from'] = date_from
         self.cleaned_data['date_to'] = date_to
