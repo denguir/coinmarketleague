@@ -1,18 +1,17 @@
 from Trader import Trader
 from traderboard.models import Profile, TradingAccount
+from django.contrib.auth.models import User
 from traderboard.forms import \
     AddTradingAccountForm, EditProfileForm, RegistrationForm, EditSettingsForm, ProfileFilterForm
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
-from django.contrib.auth.models import User
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import PasswordChangeForm
 from django.template.context_processors import csrf
-from datetime import datetime, timedelta, timezone
 from verify_email.email_handler import send_verification_email
-import time
+from datetime import datetime, timedelta, timezone
+
 
 def home_out(request):
     '''home page for visitors'''
@@ -53,10 +52,9 @@ def show_profile(request):
     if request.method == 'GET':
         form = ProfileFilterForm(request.GET)
         if form.is_valid():
-            t = time.time()
             profile = trader.get_profile(form.cleaned_data['date_from'], form.cleaned_data['date_to'], 'USDT', False)
-            print(time.time() - t)
         else:
+            # by default, show last week stats
             profile = trader.get_profile(datetime.now(timezone.utc) - timedelta(days=7), 
                                                 datetime.now(timezone.utc), 'USDT', False)
     return render(request, 'accounts/profile.html', profile)
@@ -69,8 +67,10 @@ def show_overview_profile(request, pk=None):
     if request.method == 'GET':
         form = ProfileFilterForm(request.GET)
         if form.is_valid():
-            profile = trader.get_profile(form['date_from'].value(), form['date_to'].value(), 'USDT', not user.profile.public)
+            profile = trader.get_profile(form.cleaned_data['date_from'], form.cleaned_data['date_to'], 
+                                                'USDT', not user.profile.public)
         else:
+            # by default, show last week stats
             profile = trader.get_profile(datetime.now(timezone.utc) - timedelta(days=7),
                                                  datetime.now(timezone.utc), 'USDT', not user.profile.public)
     return render(request, 'accounts/profile.html', profile)
