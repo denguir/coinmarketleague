@@ -1,8 +1,11 @@
 from datetime import datetime, timezone
 from abc import ABC, abstractmethod
 from binance.client import Client as BinanceClient
+import pandas as pd
+
 
 __PLATFORMS__ = ['Binance']
+
 
 class Market(ABC):
     '''Abstract class for Market. Each platform market
@@ -73,6 +76,8 @@ class BinanceMarket(Market):
         return datetime.combine(date, datetime.min.time(), timezone.utc)
 
     def get_price_table(self):
+        '''Return current market price table'''
         prices = self.client.get_all_tickers()
-        price_table = {pair['symbol'] : float(pair['price']) for pair in prices}
+        price_table = pd.DataFrame(prices)
+        price_table = price_table.astype({"price": float})
         return price_table
