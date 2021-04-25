@@ -167,7 +167,7 @@ class Trader(object):
                 try:
                     pnl_hist[days[t]] = (balance_hist[days[t]] - balance_hist[days[t-1]] - dep + wit) / balance_hist[days[t-1]]
                 except ZeroDivisionError:
-                    pnl_hist[days[t]] = 0.0
+                    pnl_hist[days[t]] = None
         return pnl_hist
 
 
