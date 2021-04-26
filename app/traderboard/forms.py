@@ -1,5 +1,6 @@
 import re
 from django import forms
+from django.contrib.auth import models
 from django.contrib.auth.models import User
 from traderboard.models import Profile, TradingAccount
 from TradingClient import TradingClient
@@ -61,11 +62,10 @@ class EditProfileForm(UserChangeForm):
 
 
 class EditSettingsForm(forms.ModelForm):
-    public = forms.BooleanField(help_text='Put your account on public mode.\
-                                        It implies that other people can see your balance information.')
     class Meta:
         model = Profile
-        fields = ('public', )
+        fields = ('picture', 
+                  'public',)
 
 
 class AddTradingAccountForm(forms.ModelForm):
@@ -127,7 +127,6 @@ class ProfileFilterForm(forms.Form):
             date_from = datetime.combine(date_from, datetime.min.time(), timezone.utc)
             date_to = datetime.combine(date_to, datetime.min.time(), timezone.utc)
         except Exception as e:
-            print(e)
             raise forms.ValidationError(u'Unvalid date format.')
 
         if date_from >= date_to:

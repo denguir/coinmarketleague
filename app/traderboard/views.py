@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 from traderboard.forms import \
     AddTradingAccountForm, EditProfileForm, RegistrationForm, EditSettingsForm, ProfileFilterForm
 from django.contrib.auth.forms import PasswordChangeForm
+from django.core.files.storage import FileSystemStorage
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.shortcuts import render, redirect, get_object_or_404
@@ -88,7 +89,7 @@ def edit_settings(request):
     args.update(csrf(request))
     args['user'] = user
     if request.method == 'POST':
-        form = EditSettingsForm(request.POST, instance=user)
+        form = EditSettingsForm(request.POST, request.FILES, instance=user)
         if form.is_valid():
             form.save()
             return redirect('edit_settings')
@@ -108,17 +109,21 @@ def edit_profile(request):
     args.update(csrf(request))
     args['user'] = user
     if request.method == 'POST':
-        form = EditProfileForm(request.POST, instance=user)
-        if form.is_valid():
-            form.save()
+        u_form = EditProfileForm(request.POST, instance=user)
+        p_form = EditSettingsForm(request.POST, request.FILES, instance=user.profile)
+        if u_form.is_valid() and p_form.is_valid():
+            u_form.save()
+            p_form.save()
             messages.success(request, 'Profile succesfully updated!')
-            return redirect('edit_profile')
         else:
             messages.error(request, 'Invalid information provided.')
-            return redirect('edit_profile')
+
+        return redirect('edit_profile')
     else:
-        form = EditProfileForm(instance=user)
-        args['form'] = form
+        u_form = EditProfileForm(instance=user)
+        p_form = EditSettingsForm(instance=user.profile)
+        args['u_form'] = u_form
+        args['p_form'] = p_form
         return render(request, 'accounts/edit_profile.html', args)
 
 
@@ -179,3 +184,14 @@ def remove_trading_account(request, pk=None):
         ta.delete()
         messages.success(request, 'Trading account succesfully removed.')
     return redirect('trading_accounts')
+
+
+@login_required
+def image_upload(request):
+    if request.method == "POST" and request.FILES["image_file"]:
+        image_file = request.FILES["image_file"]
+        fs = FileSystemStorage()
+        filename = fs.save(image_file.name, image_file)
+        image_url = fs.url(filename)
+        return render(request, "upload.html", {"image_url": image_url})
+    return render(request, "upload.html")

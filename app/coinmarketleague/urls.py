@@ -15,6 +15,8 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 import traderboard.views as views
 
 urlpatterns = [
@@ -23,3 +25,6 @@ urlpatterns = [
     path('verification/', include('verify_email.urls')),
     path('', views.home_out, name='home_out'),
 ]
+
+if bool(settings.DEBUG):
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
