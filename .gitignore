@@ -2,3 +2,9 @@ migrations/*
 *.sqlite3
 *.pyc
 settings.py
+.env.dev
+.env.prod
+.env.prod.db
+Dockerfile.prod
+entrypoint.prod.sh
+docker-compose.prod.yml

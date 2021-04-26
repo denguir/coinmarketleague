@@ -2,7 +2,6 @@ import pandas as pd
 from datetime import datetime
 from abc import ABC, abstractmethod
 from binance.client import Client as BinanceClient
-from traderboard.models import SnapshotAccount
 from Market import Market
 
 __PLATFORMS__ = ['Binance']

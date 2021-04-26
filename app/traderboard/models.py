@@ -9,6 +9,7 @@ class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     # main settings
     public = models.BooleanField(default=False)
+    picture = models.ImageField(upload_to='profile_picture', blank=True)
     # store main stats about the user
     daily_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
     weekly_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
@@ -47,26 +48,8 @@ class TradingAccount(models.Model):
                                 choices=TradingPlatform.choices,
                                 default=TradingPlatform.BINANCE)
 
-    # about encrypted fields: https://pypi.org/project/django-searchable-encrypted-fields/
     api_key = models.CharField(max_length=64, default='')
     api_secret = fields.EncryptedCharField(max_length=64, default='')
-
-
-class SnapshotAccount(models.Model):
-    '''Snapshot of a TradingAccount with balance value'''
-    account = models.ForeignKey(TradingAccount, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    balance_btc =  models.DecimalField(max_digits=30, decimal_places=8)
-    balance_usdt = models.DecimalField(max_digits=30, decimal_places=2)
-
-
-class SnapshotAccountDetails(models.Model):
-    '''Details of SnapshotAccount containing, the asset, amount pairs
-    available at snapshot time''' 
-    snapshot = models.ForeignKey(SnapshotAccount, on_delete=models.CASCADE)
-    asset = models.CharField(max_length=10)
-    amount = models.DecimalField(max_digits=30, decimal_places=8)
 
 
 @receiver(post_save, sender=User)

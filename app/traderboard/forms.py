@@ -89,9 +89,9 @@ class AddTradingAccountForm(forms.ModelForm):
         )
     
     def clean(self):
-        api_key = self.cleaned_data['api_key']
-        api_secret = self.cleaned_data['api_secret']
-        platform = self.cleaned_data['platform']
+        api_key = self.cleaned_data.get('api_key', '')
+        api_secret = self.cleaned_data.get('api_secret', '')
+        platform = self.cleaned_data.get('platform', '')
 
         if api_key and TradingAccount.objects.filter(platform__iexact=platform).filter(api_key__iexact=api_key).exists():
             raise forms.ValidationError(u'This trading account is already linked to a user.')
@@ -121,9 +121,11 @@ class ProfileFilterForm(forms.Form):
     date_to = forms.DateField()
 
     def clean(self):
+        date_from = self.cleaned_data.get('date_from', '')
+        date_to = self.cleaned_data.get('date_to', '')
         try:
-            date_from = datetime.combine(self.cleaned_data['date_from'], datetime.min.time(), timezone.utc)
-            date_to = datetime.combine(self.cleaned_data['date_to'], datetime.min.time(), timezone.utc)
+            date_from = datetime.combine(date_from, datetime.min.time(), timezone.utc)
+            date_to = datetime.combine(date_to, datetime.min.time(), timezone.utc)
         except Exception as e:
             print(e)
             raise forms.ValidationError(u'Unvalid date format.')
