@@ -3,6 +3,7 @@ psycopg2-binary==2.8.5
 gunicorn==20.0.4
 numpy
 pandas
+Pillow
 python-binance
 django-widget-tweaks
 django-searchable-encrypted-fields
