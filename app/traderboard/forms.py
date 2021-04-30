@@ -62,10 +62,20 @@ class EditProfileForm(UserChangeForm):
 
 
 class EditSettingsForm(forms.ModelForm):
+    picture = forms.ImageField(help_text='Max size: 1 MB')
     class Meta:
         model = Profile
         fields = ('picture', 
                   'public',)
+
+    def clean_picture(self):
+        picture = self.cleaned_data.get('picture', 0)
+        if picture:
+            if picture._size > 1024*1024:
+                raise forms.ValidationError("Image file too large ( > 1MB).")
+            return picture
+        else:
+            raise forms.ValidationError("Couldn't read uploaded image.")
 
 
 class AddTradingAccountForm(forms.ModelForm):
