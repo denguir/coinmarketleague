@@ -1,8 +1,7 @@
 migrations/*
-media/*
+media
 *.sqlite3
 *.pyc
-settings.py
 .env.dev
 .env.prod
 .env.prod.db
