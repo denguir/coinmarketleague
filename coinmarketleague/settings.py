@@ -154,11 +154,6 @@ else:
     DEFAULT_FROM_EMAIL= os.environ.get('EMAIL_ADDRESS')
 
     # HTTPS
-    MIDDLEWARE = [
-    # SecurityMiddleware must be listed before other middleware
-    'django.middleware.security.SecurityMiddleware',
-    ]   
-
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_SSL_REDIRECT = True
     CSRF_COOKIE_SECURE=True
