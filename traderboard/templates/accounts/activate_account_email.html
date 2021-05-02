@@ -1,11 +1,24 @@
 {% autoescape off %}  
-Hi {{ user.username }},
+<p>
+    Hi {{ user.username }},
+</p>
 
-Please click on the following link to confirm your registration of your CoinMarketLeague account:
-{{ link }} 
+<p>
+    Please click on the following link to confirm your registration of your CoinMarketLeague account:
+</p>
 
-If you think, it's not you, then just ignore this email.  
+<p>
+    {{ link }} 
+</p>
 
-Sincerely,
-The CoinMarketLeague Team
+<p>
+    If you think it's not for you, then just ignore this email.  
+</p>
+
+<p>
+    Sincerely,
+</p>
+<p>
+    The CoinMarketLeague Team
+</p>
 {% endautoescape %}
