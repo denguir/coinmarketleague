@@ -141,7 +141,7 @@ LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'home_out'
 
 
-# Email server settings
+# Server settings
 if DEBUG:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' # for dev
 else:
@@ -153,8 +153,9 @@ else:
     EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_PASSWORD')
     DEFAULT_FROM_EMAIL= os.environ.get('EMAIL_ADDRESS')
 
-# SSL
-# SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    # HTTPS
+    CSRF_COOKIE_SECURE=True
+    SESSION_COOKIE_SECURE=True
 
 # Email verification
 HTML_MESSAGE_TEMPLATE = os.path.join(HTML_APP_DIR, 'accounts', 'activate_account_email.html')
