@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 """
 
 import os
+import django_heroku
 from django.contrib.messages import constants as messages
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -165,3 +166,6 @@ VERIFICATION_FAILED_TEMPLATE = os.path.join(HTML_APP_DIR, 'accounts', 'activate_
 MESSAGE_TAGS = {
     messages.ERROR: 'danger',
 }
+
+# Settings for heroku
+django_heroku.settings(locals())
