@@ -152,7 +152,7 @@ DEFAULT_FROM_EMAIL= os.environ.get('EMAIL_ADDRESS')
 
 # Server settings
 
-if not DEBUG:
+if DEBUG == 0:
     # HTTPS
     MIDDLEWARE = [
     # SecurityMiddleware must be listed before other middleware
