@@ -152,6 +152,9 @@ else:
     EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_PASSWORD')
     DEFAULT_FROM_EMAIL= os.environ.get('EMAIL_ADDRESS')
 
+# SSL
+# SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 # Email verification
 HTML_MESSAGE_TEMPLATE = os.path.join(HTML_APP_DIR, 'accounts', 'activate_account_email.html')
 SUBJECT = 'Account activation'
