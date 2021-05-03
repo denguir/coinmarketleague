@@ -8,21 +8,12 @@ from traderboard.models import SnapshotProfile, SnapshotProfileDetails
 from Trader import Trader
 from Market import Market
 from datetime import datetime, timedelta, timezone
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.combining import OrTrigger
-from apscheduler.triggers.cron import CronTrigger
+
 
 __PLATFORMS__ = ['Binance']
 
-scheduler = BackgroundScheduler()
 
-trigger = OrTrigger([
-   CronTrigger(minute='0'),
-   CronTrigger(minute='30'),
-])
-
-
-def update():
+if __name__ == '__main__':
     # Initialize markets
     now = datetime.now(timezone.utc)
     today = datetime.combine(now, datetime.min.time(), timezone.utc)
@@ -87,6 +78,3 @@ def update():
         user.profile.weekly_pnl = weekly_pnl
         user.profile.monthly_pnl = monthly_pnl
         user.save()
-
-scheduler.add_job(update, trigger)
-scheduler.start()
