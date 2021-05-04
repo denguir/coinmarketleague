@@ -128,10 +128,4 @@ class BinanceTradingClient(TradingClient):
         withdrawals = self.get_withdrawals(date_from, date_to, market)
         return self.get_daily_value(withdrawals, market, base)
 
-    def get_daily_deposits_value(self, date_from, date_to, market, base='USDT'):
-        deposits = self.get_deposits(date_from, date_to, market)
-        mkt = self.get_value_table(deposits, market, base)
-        mkt['day'] = mkt['time'].apply(market.to_date)
-        return mkt.groupby('day')['value'].sum().to_dict()
-
 
