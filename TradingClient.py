@@ -52,28 +52,35 @@ class BinanceTradingClient(TradingClient):
         info = self.client.get_account()
         balances = pd.DataFrame(info['balances'])
         balances['amount'] = balances['free'].astype(float) + balances['locked'].astype(float)
+        balances = balances[balances['amount'] > 0.0]
         return balances[['asset', 'amount']]
 
     def get_deposits(self, date_from, date_to, market):
         start = market.to_timestamp(date_from)
         end = market.to_timestamp(date_to)
-        info = self.client.get_deposit_history(startTime=start, endTime=end, status=1)['depositList']
+        info = self.client.get_deposit_history(startTime=start, endTime=end, status=1)
         deposits = pd.DataFrame(columns=['time', 'asset', 'amount'])
         if info:
             deposits = pd.DataFrame(info)
             deposits['time'] = deposits['insertTime']
+            deposits['asset'] = deposits['coin']
+            deposits['amount'] = deposits['amount'].astype(float)
             deposits = deposits[['time', 'asset', 'amount']]
+        print(deposits)
         return deposits
 
     def get_withdrawals(self, date_from, date_to, market):
         start = market.to_timestamp(date_from)
         end = market.to_timestamp(date_to)
-        info = self.client.get_withdraw_history(startTime=start, endTime=end, status=6)['withdrawList']
+        info = self.client.get_withdraw_history(startTime=start, endTime=end, status=6)
         withdrawals = pd.DataFrame(columns=['time', 'asset', 'amount'])
         if info:
             withdrawals = pd.DataFrame(info)
             withdrawals['time'] = withdrawals['applyTime']
+            withdrawals['asset'] = withdrawals['coin']
+            withdrawals['amount'] = withdrawals['amount'].astype(float)
             withdrawals = withdrawals[['time', 'asset', 'amount']]
+        print(withdrawals)
         return withdrawals
 
     def get_value_table(self, balances, market, base='USDT'):
@@ -93,7 +100,11 @@ class BinanceTradingClient(TradingClient):
         mkt = pd.concat([mkt, reverse_mkt])
         mkt['value'] = mkt['amount'] * mkt['price']
         return mkt
-    
+
+    def get_per_quote_value_table(self, balances, market, base, quote):
+        pass
+
+
     def get_value(self, balances, market, base='USDT'):
         '''Return the sum of the value table of either a
         deposits, withdrawals or balances dataFrame'''
@@ -127,11 +138,5 @@ class BinanceTradingClient(TradingClient):
     def get_daily_withdrawals_value(self, date_from, date_to, market, base='USDT'):
         withdrawals = self.get_withdrawals(date_from, date_to, market)
         return self.get_daily_value(withdrawals, market, base)
-
-    def get_daily_deposits_value(self, date_from, date_to, market, base='USDT'):
-        deposits = self.get_deposits(date_from, date_to, market)
-        mkt = self.get_value_table(deposits, market, base)
-        mkt['day'] = mkt['time'].apply(market.to_date)
-        return mkt.groupby('day')['value'].sum().to_dict()
 
 
