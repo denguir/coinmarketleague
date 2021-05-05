@@ -52,6 +52,7 @@ class BinanceTradingClient(TradingClient):
         info = self.client.get_account()
         balances = pd.DataFrame(info['balances'])
         balances['amount'] = balances['free'].astype(float) + balances['locked'].astype(float)
+        balances = balances[balances['amount'] > 0.0]
         return balances[['asset', 'amount']]
 
     def get_deposits(self, date_from, date_to, market):
@@ -62,8 +63,10 @@ class BinanceTradingClient(TradingClient):
         if info:
             deposits = pd.DataFrame(info)
             deposits['time'] = deposits['insertTime']
-            deposits['asset'] = deposits['coin'] 
+            deposits['asset'] = deposits['coin']
+            deposits['amount'] = deposits['amount'].astype(float)
             deposits = deposits[['time', 'asset', 'amount']]
+        print(deposits)
         return deposits
 
     def get_withdrawals(self, date_from, date_to, market):
@@ -75,7 +78,9 @@ class BinanceTradingClient(TradingClient):
             withdrawals = pd.DataFrame(info)
             withdrawals['time'] = withdrawals['applyTime']
             withdrawals['asset'] = withdrawals['coin']
+            withdrawals['amount'] = withdrawals['amount'].astype(float)
             withdrawals = withdrawals[['time', 'asset', 'amount']]
+        print(withdrawals)
         return withdrawals
 
     def get_value_table(self, balances, market, base='USDT'):
@@ -96,7 +101,11 @@ class BinanceTradingClient(TradingClient):
         mkt['value'] = mkt['amount'].astype(float) * mkt['price'].astype(float)
         print(mkt)
         return mkt
-    
+
+    def get_per_quote_value_table(self, balances, market, base, quote):
+        pass
+
+
     def get_value(self, balances, market, base='USDT'):
         '''Return the sum of the value table of either a
         deposits, withdrawals or balances dataFrame'''
