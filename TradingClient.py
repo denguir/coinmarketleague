@@ -93,7 +93,8 @@ class BinanceTradingClient(TradingClient):
         reverse_mkt = reverse_mkt[reverse_mkt['price'].notna()]
         reverse_mkt['price'] = 1.0 / reverse_mkt['price']
         mkt = pd.concat([mkt, reverse_mkt])
-        mkt['value'] = mkt['amount'] * mkt['price']
+        mkt['value'] = mkt['amount'].astype(float) * mkt['price'].astype(float)
+        print(mkt)
         return mkt
     
     def get_value(self, balances, market, base='USDT'):
