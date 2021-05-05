@@ -57,22 +57,24 @@ class BinanceTradingClient(TradingClient):
     def get_deposits(self, date_from, date_to, market):
         start = market.to_timestamp(date_from)
         end = market.to_timestamp(date_to)
-        info = self.client.get_deposit_history(startTime=start, endTime=end, status=1)['depositList']
+        info = self.client.get_deposit_history(startTime=start, endTime=end, status=1)
         deposits = pd.DataFrame(columns=['time', 'asset', 'amount'])
         if info:
             deposits = pd.DataFrame(info)
             deposits['time'] = deposits['insertTime']
+            deposits['asset'] = deposits['coin'] 
             deposits = deposits[['time', 'asset', 'amount']]
         return deposits
 
     def get_withdrawals(self, date_from, date_to, market):
         start = market.to_timestamp(date_from)
         end = market.to_timestamp(date_to)
-        info = self.client.get_withdraw_history(startTime=start, endTime=end, status=6)['withdrawList']
+        info = self.client.get_withdraw_history(startTime=start, endTime=end, status=6)
         withdrawals = pd.DataFrame(columns=['time', 'asset', 'amount'])
         if info:
             withdrawals = pd.DataFrame(info)
             withdrawals['time'] = withdrawals['applyTime']
+            withdrawals['asset'] = withdrawals['coin']
             withdrawals = withdrawals[['time', 'asset', 'amount']]
         return withdrawals
 
