@@ -26,11 +26,11 @@ class TradingClient(ABC):
         pass
 
     @abstractmethod
-    def get_deposits(self, date_from: datetime, date_to: datetime, market: Market) -> pd.DataFrame:
+    def get_deposit_history(self, date_from: datetime, date_to: datetime, market: Market) -> pd.DataFrame:
         pass
 
     @abstractmethod
-    def get_withdrawals(self, date_from: datetime, date_to: datetime, market: Market) -> pd.DataFrame:
+    def get_withdrawal_history(self, date_from: datetime, date_to: datetime, market: Market) -> pd.DataFrame:
         pass
 
     @abstractmethod
@@ -55,7 +55,13 @@ class BinanceTradingClient(TradingClient):
         balances = balances[balances['amount'] > 0.0]
         return balances[['asset', 'amount']]
 
-    def get_deposits(self, date_from, date_to, market):
+    def get_balance_history(self, date_from, date_to, market):
+        start = market.to_timestamp(date_from)
+        end = market.to_timestamp(date_to)
+        info = self.client.get_account_snapshot(type='SPOT', startTime=start, endTime=end)
+        pass
+
+    def get_deposit_history(self, date_from, date_to, market):
         start = market.to_timestamp(date_from)
         end = market.to_timestamp(date_to)
         info = self.client.get_deposit_history(startTime=start, endTime=end, status=1)
@@ -66,10 +72,9 @@ class BinanceTradingClient(TradingClient):
             deposits['asset'] = deposits['coin']
             deposits['amount'] = deposits['amount'].astype(float)
             deposits = deposits[['time', 'asset', 'amount']]
-        print(deposits)
         return deposits
 
-    def get_withdrawals(self, date_from, date_to, market):
+    def get_withdrawal_history(self, date_from, date_to, market):
         start = market.to_timestamp(date_from)
         end = market.to_timestamp(date_to)
         info = self.client.get_withdraw_history(startTime=start, endTime=end, status=6)
@@ -80,7 +85,6 @@ class BinanceTradingClient(TradingClient):
             withdrawals['asset'] = withdrawals['coin']
             withdrawals['amount'] = withdrawals['amount'].astype(float)
             withdrawals = withdrawals[['time', 'asset', 'amount']]
-        print(withdrawals)
         return withdrawals
 
     def get_value_table(self, balances, market, base='USDT'):
@@ -124,19 +128,19 @@ class BinanceTradingClient(TradingClient):
         return self.get_value(balances, market, base)
 
     def get_deposits_value(self, date_from, date_to, market, base='USDT'):
-        deposits = self.get_deposits(date_from, date_to, market)
+        deposits = self.get_deposit_history(date_from, date_to, market)
         return self.get_value(deposits, market, base)
 
     def get_daily_deposits_value(self, date_from, date_to, market, base='USDT'):
-        deposits = self.get_deposits(date_from, date_to, market)
+        deposits = self.get_deposit_history(date_from, date_to, market)
         return self.get_daily_value(deposits, market, base)
 
     def get_withdrawals_value(self, date_from, date_to, market, base='USDT'):
-        withdrawals = self.get_withdrawals(date_from, date_to, market)
+        withdrawals = self.get_withdrawal_history(date_from, date_to, market)
         return self.get_value(withdrawals, market, base)
 
     def get_daily_withdrawals_value(self, date_from, date_to, market, base='USDT'):
-        withdrawals = self.get_withdrawals(date_from, date_to, market)
+        withdrawals = self.get_withdrawal_history(date_from, date_to, market)
         return self.get_daily_value(withdrawals, market, base)
 
 

@@ -1,12 +1,12 @@
-from datetime import date
 from Market import Market
 from TradingClient import TradingClient
 from traderboard.models import TradingAccount, SnapshotProfile
 from django.db.models.functions import TruncDay
-from collections import OrderedDict
-from django.db.models import Avg
+from django.db.models import Max, Sum
 from utils import to_series, to_time_series
+from multipledispatch import dispatch
 import numpy as np
+import pandas as pd
 
 
 class Trader(object):
@@ -98,21 +98,24 @@ class Trader(object):
 
 
     def get_daily_balances(self, date_from, date_to, base='USDT'):
-        '''returns a historical balance time series aggregated by day'''
+        '''Returns a historical balance time series aggregated by day'''
         snaps = SnapshotProfile.objects.filter(profile=self.user.profile)\
-                                       .annotate(day=TruncDay('created_at'))\
-                                       .filter(day__range=[date_from, date_to])\
-                                       .values('day')
-        balance_hist = OrderedDict()
-        data = []
-        if base == 'USDT':
-            data = snaps.annotate(avg_bal=Avg('balance_usdt')).order_by('day')
+                                       .filter(create_at__range=[date_from, date_to])\
+                                       .annotate(day=TruncDay('created_at'))
+        close_time = snaps.values('day')\
+                          .annotate(close_time=Max('created_at'))\
+                          .values('close_time')
 
-        elif base == 'BTC':
-            data = snaps.annotate(avg_bal=Avg('balance_btc')).order_by('day')
+        snaps = snaps.filter(created_at__in=close_time).order_by('day')
+        balances = snaps.values('day', 'balance_btc', 'balance_usdt')
+        balance_hist = pd.DataFrame.from_records(balances)
 
-        for snap in data:
-            balance_hist[snap['day']] = float(snap['avg_bal'])
+        if base == 'BTC':
+            balance_hist['balance'] = balance_hist['balance_btc'].astype(float)
+        else:
+            balance_hist['balance'] = balance_hist['balance_usdt'].astype(float)
+        
+        balance_hist = balance_hist[['day', 'balance']]
         return balance_hist
 
     
@@ -126,74 +129,64 @@ class Trader(object):
         elif base == 'BTC':
             balance_from = float(snap.balance_btc)
 
-        pnl = round((balance_now - deposits + withdrawals - balance_from)*100 / balance_from, 2)
+        pnl = balance_now - balance_from - deposits + withdrawals 
         return pnl
 
 
     def get_daily_PnL(self, date_from, date_to, base='USDT'):
-        '''Compute PnL for each day w.r.t previous day, using the formula:
-        PnL(t) = bal(t) - [bal(t-1) + dep(t-1, t) - wit(t-1, t)]'''
-        pnl_hist = OrderedDict()
-        balance_hist = self.get_daily_balances(date_from, date_to, base)
-        days = list(balance_hist.keys())
-        deposit_hist = self.get_daily_deposits_value(date_from, date_to, base)
-        withdrawal_hist = self.get_daily_withdrawals_value(date_from, date_to, base)
-        
-        for t in range(len(days)):
-            if t == 0:
-                pnl_hist[days[t]] = 0.0
-            else:
-                dep = deposit_hist.get(days[t], 0.0)
-                wit = withdrawal_hist.get(days[t], 0.0)
-                pnl_hist[days[t]] = balance_hist[days[t]] - balance_hist[days[t-1]] - dep + wit
+        snaps = SnapshotProfile.objects.filter(profile=self.user.profile)\
+                                       .filter(create_at__range=[date_from, date_to])\
+                                       .annotate(day=TruncDay('created_at'))\
+                                       .values('day')
+        pnl = snaps.annotate(pnl_btc=Sum('pnl_btc'))\
+                   .annotate(pnl_usdt=Sum('pnl_usdt'))\
+                   .order_by('day')
+
+        pnl_hist = pd.DataFrame.from_records(pnl)
+    
+        if base == 'BTC':
+            pnl_hist['pnl'] = pnl_hist['pnl_btc'].astype(float)
+        else:
+            pnl_hist['pnl'] = pnl_hist['pnl_usdt'].astype(float)
+
+        pnl_hist = pnl_hist[['day', 'pnl']]
         return pnl_hist
 
 
     def get_daily_relative_PnL(self, date_from, date_to, base='USDT'):
-        '''Compute relative PnL for each day w.r.t previous day, using formula:
-        PnLPerc(t) = bal(t) - bal(t-1) - dep(t-1, t) + wit(t-1, t) / bal(t-1)'''
-        pnl_hist = OrderedDict()
+        pnl_hist = self.get_daily_PnL(date_from, date_to, base)
         balance_hist = self.get_daily_balances(date_from, date_to, base)
-        days = list(balance_hist.keys())
-        deposit_hist = self.get_daily_deposits_value(date_from, date_to, base)
-        withdrawal_hist = self.get_daily_withdrawals_value(date_from, date_to, base)
-
-        for t in range(len(days)):
-            if t == 0:
-                pnl_hist[days[t]] = 0.0
-            else:
-                dep = deposit_hist.get(days[t], 0.0)
-                wit = withdrawal_hist.get(days[t], 0.0)
-                try:
-                    pnl_hist[days[t]] = (balance_hist[days[t]] - balance_hist[days[t-1]] - dep + wit) / balance_hist[days[t-1]]
-                except ZeroDivisionError:
-                    pnl_hist[days[t]] = None
-        return pnl_hist
+        rel_pnl_hist = pnl_hist.merge(balance_hist, 'inner', on='day')
+        rel_pnl_hist['balance_open'] = rel_pnl_hist['balance'].shift(1)
+        rel_pnl_hist['pnl_rel'] = rel_pnl_hist['pnl'] / rel_pnl_hist['balance_open']
+        return rel_pnl_hist
 
 
     def get_daily_cumulative_PnL(self, date_from, date_to, base='USDT'):
         '''Compute cumulative PnL for day_to w.r.t date_from, using the formula:
         cumPnL(t-n, t) = sum(dailyPnL(k) | k = t-n+1 -> t)'''
         daily_pnl = self.get_daily_PnL(date_from, date_to, base)
-        days = daily_pnl.keys()
-        cum_pnl = np.cumsum(list(daily_pnl.values()))
-        return OrderedDict(zip(days, cum_pnl))
+        daily_pnl['cum_pnl'] = daily_pnl['pnl'].cumsum()
+        return daily_pnl
 
 
     def get_daily_cumulative_relative_PnL(self, date_from, date_to, base='USDT'):
         '''Compute cumulative relative PnL for date_to w.r.t date_from, using the formula:
         cumPnLPercent(t-n, t) = 100 * prod(1 + dailyPnLPercent(k) | k = t-n+1 -> t) - 100'''
         daily_pnl = self.get_daily_relative_PnL(date_from, date_to, base)
-        days = daily_pnl.keys()
-        cum_pnl = np.around(100 * np.cumprod(1.0 + np.array(list(daily_pnl.values()))) - 100, 2)
-        return OrderedDict(zip(days, cum_pnl))
+        daily_pnl['cum_pnl_perc'] = np.around(100 * np.cumprod(1.0 + daily_pnl['pnl_rel']) - 100, 2)
+        return daily_pnl
 
 
     def get_profile(self, date_from, date_to, base='USDT', overview=True):
         '''Process all metrics displayed in user's profile'''
+        # TODO:
+        # use dispatch to overload fct with df as param to speed up computation
         profile = {'user': self.user, 'currency': base}
         # get PnL aggregated history
-        cum_pnl_hist = to_time_series(self.get_daily_cumulative_relative_PnL(date_from, date_to, base))
+        cum_pnl_hist = self.get_daily_cumulative_relative_PnL(date_from, date_to, base)
+        cum_pnl_hist = {'labels': cum_pnl_hist['day'].apply(lambda x: x.strftime('%d %b')).tolist(),
+                        'data': cum_pnl_hist['cum_pnl_perc'].tolist()}
         profile['cum_pnl_hist'] = cum_pnl_hist
         # get balance percentage
         balance_percentage = to_series(self.get_relative_balances(base))
