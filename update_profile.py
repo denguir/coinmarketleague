@@ -52,24 +52,21 @@ if __name__ == '__main__':
         # Get pnL data wrt to 24h record 
         try:
             pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=1), today, 'USDT')
-            first_day_pnl = pnl_hist_usdt[today - timedelta(days=1)] # here only to make sure the time range is respected, should be 0.0
-            daily_pnl = pnl_hist_usdt[today]
+            daily_pnl = float(pnl_hist_usdt[pnl_hist_usdt['day'] == today]['cum_pnl_perc'])
         except:
             daily_pnl = None
         
         # Get pnL data wrt to 7d record
         try:
             pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=7), today, 'USDT')
-            first_day_pnl = pnl_hist_usdt[today - timedelta(days=7)] # here only to make sure the time range is respected, should be 0.0
-            weekly_pnl = pnl_hist_usdt[today]
+            weekly_pnl = float(pnl_hist_usdt[pnl_hist_usdt['day'] == today]['cum_pnl_perc'])
         except:
             weekly_pnl = None
 
         # Get pnL data wrt to 1m record
         try:
             pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=30), today, 'USDT')
-            first_day_pnl = pnl_hist_usdt[today - timedelta(days=30)] # here only to make sure the time range is respected, should be 0.0
-            monthly_pnl = pnl_hist_usdt[today]
+            monthly_pnl = float(pnl_hist_usdt[pnl_hist_usdt['day'] == today]['cum_pnl_perc'])
         except:
             monthly_pnl = None
         

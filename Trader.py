@@ -3,7 +3,7 @@ from TradingClient import TradingClient
 from traderboard.models import TradingAccount, SnapshotProfile
 from django.db.models.functions import TruncDay
 from django.db.models import Max, Sum
-from utils import to_series, to_time_series
+from utils import to_series
 from multipledispatch import dispatch
 import numpy as np
 import pandas as pd
@@ -100,7 +100,7 @@ class Trader(object):
     def get_daily_balances(self, date_from, date_to, base='USDT'):
         '''Returns a historical balance time series aggregated by day'''
         snaps = SnapshotProfile.objects.filter(profile=self.user.profile)\
-                                       .filter(create_at__range=[date_from, date_to])\
+                                       .filter(created_at__range=[date_from, date_to])\
                                        .annotate(day=TruncDay('created_at'))
         close_time = snaps.values('day')\
                           .annotate(close_time=Max('created_at'))\
@@ -110,12 +110,15 @@ class Trader(object):
         balances = snaps.values('day', 'balance_btc', 'balance_usdt')
         balance_hist = pd.DataFrame.from_records(balances)
 
-        if base == 'BTC':
-            balance_hist['balance'] = balance_hist['balance_btc'].astype(float)
+        if balance_hist.empty:
+            balance_hist = pd.DataFrame(columns=['day', 'balance'])
         else:
-            balance_hist['balance'] = balance_hist['balance_usdt'].astype(float)
-        
-        balance_hist = balance_hist[['day', 'balance']]
+            if base == 'BTC':
+                balance_hist['balance'] = balance_hist['balance_btc'].astype(float)
+            else:
+                balance_hist['balance'] = balance_hist['balance_usdt'].astype(float)
+            
+            balance_hist = balance_hist[['day', 'balance']]
         return balance_hist
 
     
@@ -135,7 +138,7 @@ class Trader(object):
 
     def get_daily_PnL(self, date_from, date_to, base='USDT'):
         snaps = SnapshotProfile.objects.filter(profile=self.user.profile)\
-                                       .filter(create_at__range=[date_from, date_to])\
+                                       .filter(created_at__range=[date_from, date_to])\
                                        .annotate(day=TruncDay('created_at'))\
                                        .values('day')
         pnl = snaps.annotate(pnl_btc=Sum('pnl_btc'))\
@@ -143,13 +146,16 @@ class Trader(object):
                    .order_by('day')
 
         pnl_hist = pd.DataFrame.from_records(pnl)
-    
-        if base == 'BTC':
-            pnl_hist['pnl'] = pnl_hist['pnl_btc'].astype(float)
-        else:
-            pnl_hist['pnl'] = pnl_hist['pnl_usdt'].astype(float)
 
-        pnl_hist = pnl_hist[['day', 'pnl']]
+        if pnl_hist.empty:
+            pnl_hist = pd.DataFrame(columns=['day', 'pnl'])
+        else:
+            if base == 'BTC':
+                pnl_hist['pnl'] = pnl_hist['pnl_btc'].astype(float)
+            else:
+                pnl_hist['pnl'] = pnl_hist['pnl_usdt'].astype(float)
+
+            pnl_hist = pnl_hist[['day', 'pnl']].fillna({'pnl': 0.0})
         return pnl_hist
 
 
@@ -159,6 +165,7 @@ class Trader(object):
         rel_pnl_hist = pnl_hist.merge(balance_hist, 'inner', on='day')
         rel_pnl_hist['balance_open'] = rel_pnl_hist['balance'].shift(1)
         rel_pnl_hist['pnl_rel'] = rel_pnl_hist['pnl'] / rel_pnl_hist['balance_open']
+        rel_pnl_hist = rel_pnl_hist.fillna({'pnl_rel': 0.0})
         return rel_pnl_hist
 
 
@@ -196,13 +203,17 @@ class Trader(object):
         # get private information
         if not overview:
             # get balance aggregated history
-            balance_hist = to_time_series(self.get_daily_balances(date_from, date_to, base))
+            balance_hist = self.get_daily_balances(date_from, date_to, base)
+            balance_hist = {'labels': balance_hist['day'].apply(lambda x: x.strftime('%d %b')).tolist(),
+                            'data': balance_hist['balance'].tolist()}
             profile['balance_hist'] = balance_hist
             # get balance info now
             balance = round(self.get_balances_value(base), 2)
             profile['balance'] = balance
             # get daily pnl
-            daily_pnl_hist = to_time_series(self.get_daily_PnL(date_from, date_to, base))
+            daily_pnl_hist = self.get_daily_PnL(date_from, date_to, base)
+            daily_pnl_hist = {'labels': daily_pnl_hist['day'].apply(lambda x: x.strftime('%d %b')).tolist(),
+                              'data': daily_pnl_hist['pnl'].tolist()}
             profile['daily_pnl_hist'] = daily_pnl_hist
         return profile
 
