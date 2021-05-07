@@ -1,3 +1,4 @@
+from TradingClient import TradingClient
 from Trader import Trader
 from traderboard.models import Profile, TradingAccount
 from django.contrib.auth.models import User
@@ -165,7 +166,9 @@ def add_trading_account(request):
     if request.method == 'POST':
         form = AddTradingAccountForm(data=request.POST, user=request.user)
         if form.is_valid():
-            form.save()
+            ta = form.save()
+            tc = TradingClient.trading_from(ta.platform)
+            tc.load_stats(form.cleaned_data['date_from'])
             messages.success(request, 'Trading account added successfully!')
             return redirect('trading_accounts')
         else:

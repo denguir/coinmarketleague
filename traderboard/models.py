@@ -16,28 +16,6 @@ class Profile(models.Model):
     monthly_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
 
 
-class SnapshotProfile(models.Model):
-    '''Contains pre-aggregate stats about the user'''
-    profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    # balance value
-    balance_btc = models.DecimalField(max_digits=30, decimal_places=8)
-    balance_usdt = models.DecimalField(max_digits=30, decimal_places=2)
-    # these are profit and losses from the last snapshot: pnl(t-1; t),
-    # note that pnl(t-2; t) = pnl(t-2; t-1) + pnl(t-1; t) * bal(t-1)/bal(t-2)
-    pnl_btc =  models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
-    pnl_usdt =  models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
-
-
-class SnapshotProfileDetails(models.Model):
-    '''Details of SnapshotProfile containing, the asset, amount pairs
-    available at snapshot time''' 
-    snapshot = models.ForeignKey(SnapshotProfile, on_delete=models.CASCADE)
-    asset = models.CharField(max_length=10)
-    amount = models.DecimalField(max_digits=30, decimal_places=8)
-
-
 class TradingAccount(models.Model):
     '''Trading account of a given User on a supported TradingPlatform'''
     class TradingPlatform(models.TextChoices):
@@ -50,6 +28,28 @@ class TradingAccount(models.Model):
 
     api_key = models.CharField(max_length=64, default='')
     api_secret = fields.EncryptedCharField(max_length=64, default='')
+
+
+class SnapshotAccount(models.Model):
+    '''Contains raw stats about the user'''
+    account = models.ForeignKey(TradingAccount, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    # balance value
+    balance_btc = models.DecimalField(max_digits=30, decimal_places=8)
+    balance_usdt = models.DecimalField(max_digits=30, decimal_places=2)
+    # these are profit and losses from the last snapshot: pnl(t-1; t),
+    # note that pnl(t-2; t) = pnl(t-2; t-1) + pnl(t-1; t) * bal(t-1)/bal(t-2)
+    pnl_btc =  models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
+    pnl_usdt =  models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
+
+
+class SnapshotAccountDetails(models.Model):
+    '''Details of SnapshotAccount containing, the asset, amount pairs
+    available at snapshot time''' 
+    snapshot = models.ForeignKey(SnapshotAccount, on_delete=models.CASCADE)
+    asset = models.CharField(max_length=10)
+    amount = models.DecimalField(max_digits=30, decimal_places=8)
 
 
 @receiver(post_save, sender=User)

@@ -1,8 +1,6 @@
 from Market import Market
 from TradingClient import TradingClient
-from traderboard.models import TradingAccount, SnapshotProfile
-from django.db.models.functions import TruncDay
-from django.db.models import Max, Sum
+from traderboard.models import TradingAccount
 from utils import to_series
 from multipledispatch import dispatch
 import numpy as np
@@ -99,63 +97,23 @@ class Trader(object):
 
     def get_daily_balances(self, date_from, date_to, base='USDT'):
         '''Returns a historical balance time series aggregated by day'''
-        snaps = SnapshotProfile.objects.filter(profile=self.user.profile)\
-                                       .filter(created_at__range=[date_from, date_to])\
-                                       .annotate(day=TruncDay('created_at'))
-        close_time = snaps.values('day')\
-                          .annotate(close_time=Max('created_at'))\
-                          .values('close_time')
-
-        snaps = snaps.filter(created_at__in=close_time).order_by('day')
-        balances = snaps.values('day', 'balance_btc', 'balance_usdt')
-        balance_hist = pd.DataFrame.from_records(balances)
-
-        if balance_hist.empty:
-            balance_hist = pd.DataFrame(columns=['day', 'balance'])
-        else:
-            if base == 'BTC':
-                balance_hist['balance'] = balance_hist['balance_btc'].astype(float)
-            else:
-                balance_hist['balance'] = balance_hist['balance_usdt'].astype(float)
-            
-            balance_hist = balance_hist[['day', 'balance']]
+        balance_hist = pd.DataFrame(columns=['day', 'balance'])
+        for tc in self.tcs:
+            tc_bal = tc.get_daily_balances(date_from, date_to, base)
+            balance_hist = balance_hist.append(tc_bal)
+        balance_hist = balance_hist.groupby('day')['balance'].sum()\
+                                   .reset_index().sort_values('day')
         return balance_hist
-
-    
-    def get_PnL(self, snap, now, base='USDT'):
-        deposits = self.get_deposits_value(snap.created_at, now, base)
-        withdrawals = self.get_withdrawals_value(snap.created_at, now, base)
-        balance_now = self.get_balances_value(base)
-
-        if base == 'USDT':
-            balance_from = float(snap.balance_usdt)
-        elif base == 'BTC':
-            balance_from = float(snap.balance_btc)
-
-        pnl = balance_now - balance_from - deposits + withdrawals 
-        return pnl
 
 
     def get_daily_PnL(self, date_from, date_to, base='USDT'):
-        snaps = SnapshotProfile.objects.filter(profile=self.user.profile)\
-                                       .filter(created_at__range=[date_from, date_to])\
-                                       .annotate(day=TruncDay('created_at'))\
-                                       .values('day')
-        pnl = snaps.annotate(pnl_btc=Sum('pnl_btc'))\
-                   .annotate(pnl_usdt=Sum('pnl_usdt'))\
-                   .order_by('day')
-
-        pnl_hist = pd.DataFrame.from_records(pnl)
-
-        if pnl_hist.empty:
-            pnl_hist = pd.DataFrame(columns=['day', 'pnl'])
-        else:
-            if base == 'BTC':
-                pnl_hist['pnl'] = pnl_hist['pnl_btc'].astype(float)
-            else:
-                pnl_hist['pnl'] = pnl_hist['pnl_usdt'].astype(float)
-
-            pnl_hist = pnl_hist[['day', 'pnl']].fillna({'pnl': 0.0})
+        '''Returns a historical PnL time series aggregated by day'''
+        pnl_hist = pd.DataFrame(columns=['day', 'pnl'])
+        for tc in self.tcs:
+            tc_pnl = tc.get_daily_PnL(date_from, date_to, base)
+            pnl_hist = pnl_hist.append(tc_pnl)
+        pnl_hist = pnl_hist.groupby('day')['pnl'].sum()\
+                           .reset_index().sort_values('day')
         return pnl_hist
 
 
