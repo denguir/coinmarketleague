@@ -1,11 +1,10 @@
-from TradingClient import TradingClient
 import os
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "coinmarketleague.settings")
 import django
 django.setup()
 
 from django.contrib.auth.models import User
-from traderboard.models import SnapshotAccount, SnapshotAccountDetails, SnapshotProfile, SnapshotProfileDetails, TradingAccount
+from traderboard.models import SnapshotAccount, SnapshotAccountDetails, TradingAccount
 from Trader import Trader
 from Market import Market
 from TradingClient import TradingClient
@@ -27,10 +26,10 @@ if __name__ == '__main__':
         # Collect account level data
         tas = TradingAccount.objects.filter(user=user)
         for ta in tas:
-            tc = TradingClient.trading_from(ta.platform)
+            tc = TradingClient.trading_from(ta)
             # get balances
-            balance_btc = tc.get_balances_value('BTC')
-            balance_usdt = tc.get_balances_value('USDT')
+            balance_btc = tc.get_balances_value(markets[ta.platform], 'BTC')
+            balance_usdt = tc.get_balances_value(markets[ta.platform], 'USDT')
 
             # get balance details
             balance_details = tc.get_balances()

@@ -167,8 +167,8 @@ def add_trading_account(request):
         form = AddTradingAccountForm(data=request.POST, user=request.user)
         if form.is_valid():
             ta = form.save()
-            tc = TradingClient.trading_from(ta.platform)
-            tc.load_stats(form.cleaned_data['date_from'])
+            tc = TradingClient.trading_from(ta)
+            # tc.load_stats()
             messages.success(request, 'Trading account added successfully!')
             return redirect('trading_accounts')
         else:

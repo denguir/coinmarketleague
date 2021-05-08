@@ -98,7 +98,7 @@ class Trader(object):
     def get_daily_balances(self, date_from, date_to, base='USDT'):
         '''Returns a historical balance time series aggregated by day'''
         balance_hist = pd.DataFrame(columns=['day', 'balance'])
-        for tc in self.tcs:
+        for tc, _ in self.tcs:
             tc_bal = tc.get_daily_balances(date_from, date_to, base)
             balance_hist = balance_hist.append(tc_bal)
         balance_hist = balance_hist.groupby('day')['balance'].sum()\
@@ -109,7 +109,7 @@ class Trader(object):
     def get_daily_PnL(self, date_from, date_to, base='USDT'):
         '''Returns a historical PnL time series aggregated by day'''
         pnl_hist = pd.DataFrame(columns=['day', 'pnl'])
-        for tc in self.tcs:
+        for tc, _ in self.tcs:
             tc_pnl = tc.get_daily_PnL(date_from, date_to, base)
             pnl_hist = pnl_hist.append(tc_pnl)
         pnl_hist = pnl_hist.groupby('day')['pnl'].sum()\
