@@ -33,8 +33,8 @@ class TradingAccount(models.Model):
 class SnapshotAccount(models.Model):
     '''Contains raw stats about the user'''
     account = models.ForeignKey(TradingAccount, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
     # balance value
     balance_btc = models.DecimalField(max_digits=30, decimal_places=8)
     balance_usdt = models.DecimalField(max_digits=30, decimal_places=2)

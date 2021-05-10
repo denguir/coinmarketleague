@@ -91,7 +91,7 @@ class BinanceMarket(Market):
     def to_date(self, timestamp):
         # convert server timestamp to UTC date-like object
         date = self.to_datetime(timestamp)
-        return datetime.combine(date, datetime.min.time(), timezone.utc)      
+        return datetime.combine(date, datetime.min.time(), timezone.utc)         
 
     def get_price_table(self):
         '''Return current market price table'''
@@ -134,7 +134,9 @@ class BinanceMarket(Market):
         start = self.to_timestamp(date_from)
         end = self.to_timestamp(date_to)
         if asset == base:
-            prices = 1.0
+            prices = pd.DataFrame(columns=['close_date', 'close_price'])
+            prices['close_date'] = pd.date_range(start=date_from, end=date_to)
+            prices['close_price'] = 1.0
         else:
             symbol = asset + base
             try:
@@ -155,7 +157,9 @@ class BinanceMarket(Market):
                     others = self.table[self.table['symbol'].isin(other_symbols)]
                     if others.empty:
                         print(f"Asset {asset} seems to have no exchange with one of the supported bases {self.bases}.")
-                        prices = 0.0
+                        prices = pd.DataFrame(columns=['close_date', 'close_price'])
+                        prices['close_date'] = pd.date_range(start=self.to_date(date_from), end=self.to_date(date_to))
+                        prices['close_price'] = 0.0
                     else:
                         alt_symb = others.iloc[0]['symbol']
                         alt_base = alt_symb.split(asset, 1)[1]
@@ -170,7 +174,9 @@ class BinanceMarket(Market):
                         except BinanceAPIException:
                             print(f"Asset {asset} seems to have no exchange with base {alt_base}\
                                 between {date_from} and {date_to}.")
-                            prices = 0.0
+                            prices = pd.DataFrame(columns=['close_date', 'close_price'])
+                            prices['close_date'] = pd.date_range(start=self.to_date(date_from), end=self.to_date(date_to))
+                            prices['close_price'] = 0.0
         return prices
 
 

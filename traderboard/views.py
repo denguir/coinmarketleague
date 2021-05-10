@@ -173,10 +173,11 @@ def add_trading_account(request):
             try:
                 market = Market.trading_from(ta.platform)
                 tc = TradingClient.trading_from(ta)
-                tc.load_past_stats(datetime.utcnow() - timedelta(days=90), market)
-                messages.success(request, 'Past data loaded successfuly')
-            except:
-                messages.success(request, 'Failed to fetch past data.')
+                tc.load_past_stats(datetime.utcnow() - timedelta(days=31), market)
+                messages.success(request, 'Past data loaded successfuly!')
+            except Exception as e:
+                print(e)
+                messages.warning(request, 'Failed to fetch past data.')
             return redirect('trading_accounts')
         else:
             messages.error(request, 'Invalid API information.')
