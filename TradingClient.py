@@ -47,8 +47,8 @@ class TradingClient(ABC):
 
 
 class BinanceTradingClient(TradingClient):
-    '''Trading client for Binance built from the trading accout
-        id of the user'''
+    '''Trading client for Binance built from a trading account 
+        registered in the database'''
     # TODO:
     # include sub accounts if possible
     def __init__(self, ta):
@@ -75,6 +75,8 @@ class BinanceTradingClient(TradingClient):
         bal = bal[['date', 'balance_btc', 'balance_usdt']]
 
         # get pnl
+        dep = self.get_deposit_history(date_from, date_to, market)
+        wit = self.get_withdrawal_history(date_from, date_to, market)
         
         
 
@@ -87,10 +89,10 @@ class BinanceTradingClient(TradingClient):
         balances = balances[balances['amount'] > 0.0]
         return balances[['asset', 'amount']]
 
-    def get_PnL(self, snap, now, base='USDT'):
-        deposits = self.get_deposits_value(snap.created_at, now, base)
-        withdrawals = self.get_withdrawals_value(snap.created_at, now, base)
-        balance_now = self.get_balances_value(base)
+    def get_PnL(self, snap, now, market, base='USDT'):
+        deposits = self.get_deposits_value(snap.created_at, now, market, base)
+        withdrawals = self.get_withdrawals_value(snap.created_at, now, market, base)
+        balance_now = self.get_balances_value(market, base)
 
         if base == 'USDT':
             balance_from = float(snap.balance_usdt)

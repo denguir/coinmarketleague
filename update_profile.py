@@ -37,8 +37,8 @@ if __name__ == '__main__':
             # Get pnL data wrt to last record 
             try:
                 last_snap = SnapshotAccount.objects.filter(account=ta).latest('created_at')
-                pnl_btc = tc.get_PnL(last_snap, now, 'BTC')
-                pnl_usdt = tc.get_PnL(last_snap, now, 'USDT')
+                pnl_btc = tc.get_PnL(last_snap, now, markets[ta.platform], 'BTC')
+                pnl_usdt = tc.get_PnL(last_snap, now, markets[ta.platform], 'USDT')
             except Exception as e:
                 print(f'No PnL can be computed for user id {user.pk}.\nRoot error: {e}')
                 pnl_btc = None
