@@ -1,3 +1,5 @@
+from Market import Market
+from TradingClient import TradingClient
 from Trader import Trader
 from traderboard.models import Profile, TradingAccount
 from django.contrib.auth.models import User
@@ -165,8 +167,17 @@ def add_trading_account(request):
     if request.method == 'POST':
         form = AddTradingAccountForm(data=request.POST, user=request.user)
         if form.is_valid():
-            form.save()
+            ta = form.save()
             messages.success(request, 'Trading account added successfully!')
+            # load past data when adding a trading account
+            try:
+                market = Market.trading_from(ta.platform)
+                tc = TradingClient.trading_from(ta)
+                tc.load_past_stats(datetime.utcnow() - timedelta(days=31), market)
+                messages.success(request, 'Past data loaded successfuly!')
+            except Exception as e:
+                print(e)
+                messages.warning(request, 'Failed to fetch past data.')
             return redirect('trading_accounts')
         else:
             messages.error(request, 'Invalid API information.')
