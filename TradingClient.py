@@ -71,7 +71,7 @@ class BinanceTradingClient(TradingClient):
         pnl = balance_now - balance_from - deposits + withdrawals 
         return pnl
 
-    def get_daily_balances(self, date_from, date_to, market, base='USDT'):
+    def get_daily_balances(self, date_from, date_to, base='USDT'):
         '''Returns a historical balance time series aggregated by day'''
         snaps = SnapshotAccount.objects.filter(account=self.ta)\
                                        .filter(created_at__range=[date_from, date_to])\
@@ -157,8 +157,12 @@ class BinanceTradingClient(TradingClient):
     
     def get_value(self, balances, market, base='USDT'):
         '''Return the sum of balances value table'''
-        mkt = self.get_value_table(balances, market, base)
-        return sum(mkt['value'])
+        if balances.empty:
+            value = 0.0
+        else:
+            mkt = self.get_value_table(balances, market, base)
+            value = sum(mkt['value'])
+        return value
 
     def get_balances_value(self, market, base='USDT'):
         balances = self.get_balances()

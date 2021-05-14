@@ -58,7 +58,7 @@ if __name__ == '__main__':
         trader = Trader(user, markets)
         # Get pnL data wrt to 24h record 
         try:
-            pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=1), today, 'USDT')
+            pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(now - timedelta(days=1), now, 'USDT')
             daily_pnl = float(pnl_hist_usdt[pnl_hist_usdt['day'] == today]['cum_pnl_perc'])
         except Exception as e:
             print(e)
@@ -66,7 +66,7 @@ if __name__ == '__main__':
         
         # Get pnL data wrt to 7d record
         try:
-            pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=7), today, 'USDT')
+            pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(now - timedelta(days=7), now, 'USDT')
             weekly_pnl = float(pnl_hist_usdt[pnl_hist_usdt['day'] == today]['cum_pnl_perc'])
         except Exception as e:
             print(e)
@@ -74,7 +74,7 @@ if __name__ == '__main__':
 
         # Get pnL data wrt to 1m record
         try:
-            pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=30), today, 'USDT')
+            pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(now - timedelta(days=30), now, 'USDT')
             monthly_pnl = float(pnl_hist_usdt[pnl_hist_usdt['day'] == today]['cum_pnl_perc'])
         except Exception as e:
             print(e)
