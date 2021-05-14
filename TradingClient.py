@@ -148,41 +148,12 @@ class BinanceTradingClient(TradingClient):
             withdrawals = withdrawals[['time', 'asset', 'amount']]
         return withdrawals
 
-    def get_value_table(self, balances, market, base='USDT'):
-        '''Compute the value of a balances, deposits or withdrawals DataFrame
-            using the market price. We search for the symbol assetBASE and the reverse
-            symbol BASEasset in case the former does not exist'''
-        symbol = 'asset' + base
-        reverse_symbol = base + 'asset'
-        balances[symbol] = balances['asset'].apply(lambda x: x + base)
-        balances[reverse_symbol] = balances['asset'].apply(lambda x: base + x)
-        mkt = balances.merge(market.table, how='left', left_on=symbol, right_on='symbol')
-        mkt.loc[mkt[symbol] == base + base, 'price'] = 1.0
-        mkt = mkt[mkt['price'].notna()]
-        reverse_mkt = balances.merge(market.table, how='left', left_on=reverse_symbol, right_on='symbol')
-        reverse_mkt = reverse_mkt[reverse_mkt['price'].notna()]
-        reverse_mkt['price'] = 1.0 / reverse_mkt['price']
-        mkt = pd.concat([mkt, reverse_mkt])
-        mkt['value'] = mkt['amount'] * mkt['price']
-        return mkt
-
-    def get_per_quote_value_table(self, balances, market, base, quote):
-        pass
-
-
     def get_value(self, balances, market, base='USDT'):
-        '''Return the sum of the value table of either a
-        deposits, withdrawals or balances dataFrame'''
-        mkt = self.get_value_table(balances, market, base)
-        return sum(mkt['value'])
-
-    def get_daily_value(self, balances, market, base='USDT'):
-        '''Return the daily aggregated sum of the value table of time-aware
-        DataFrame -> either a deposits or withdrawals dataFrame'''
-        assert 'time' in balances.columns, "Input DataFrame needs time col."
-        mkt = self.get_value_table(balances, market, base)
-        mkt['day'] = mkt['time'].apply(market.to_date)
-        return mkt.groupby('day')['value'].sum().to_dict()
+        '''Compute the value of a balances using the current market prices'''
+        balances['base'] = base
+        balances['price'] = balances.apply(lambda x: market.get_price(x['asset'], x['base']), axis=1)
+        balances['value'] = balances['amount'] * balances['price']
+        return sum(balances['value'])
 
     def get_balances_value(self, market, base='USDT'):
         balances = self.get_balances()
@@ -192,13 +163,22 @@ class BinanceTradingClient(TradingClient):
         deposits = self.get_deposit_history(date_from, date_to, market)
         return self.get_value(deposits, market, base)
 
-    def get_daily_deposits_value(self, date_from, date_to, market, base='USDT'):
-        deposits = self.get_deposit_history(date_from, date_to, market)
-        return self.get_daily_value(deposits, market, base)
-
     def get_withdrawals_value(self, date_from, date_to, market, base='USDT'):
         withdrawals = self.get_withdrawal_history(date_from, date_to, market)
         return self.get_value(withdrawals, market, base)
+
+    def get_daily_value(self, balances, market, base='USDT'):
+        '''Compute the value of a balances using the historic market prices'''
+        balances['day'] = balances['time'].apply(lambda ts: market.to_date(ts))
+        balances['value'] = 0.0
+        for _, bal in balances.iterrows():
+            prices = market.get_daily_prices(bal['asset'], base, bal['day'], bal['day'] + timedelta(days=1))
+            balances.loc[_, 'value'] += prices['close_price'] * bal['amount']
+        return balances.groupby('day')['value'].sum().to_dict()
+
+    def get_daily_deposits_value(self, date_from, date_to, market, base='USDT'):
+        deposits = self.get_deposit_history(date_from, date_to, market)
+        return self.get_daily_value(deposits, market, base)
 
     def get_daily_withdrawals_value(self, date_from, date_to, market, base='USDT'):
         withdrawals = self.get_withdrawal_history(date_from, date_to, market)
