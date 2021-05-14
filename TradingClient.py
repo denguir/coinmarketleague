@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from binance.client import Client as BinanceClient
 from Market import Market
 from django.db.models.functions import TruncDay
-from django.db.models import Max, Sum
+from django.db.models import Avg, Sum
 from traderboard.models import SnapshotAccount
 
 __PLATFORMS__ = ['Binance']
@@ -76,7 +76,7 @@ class BinanceTradingClient(TradingClient):
         snaps = SnapshotAccount.objects.filter(account=self.ta)\
                                        .filter(created_at__range=[date_from, date_to])\
                                        .annotate(day=TruncDay('created_at'))\
-                                       .values('day')
+                                       .values('day')\
                                        .annotate(balance_usdt=Avg('balance_usdt'))\
                                        .annotate(balance_btc=Avg('balance_btc'))\
                                        .order_by('day')
@@ -148,12 +148,17 @@ class BinanceTradingClient(TradingClient):
             withdrawals = withdrawals[['time', 'asset', 'amount']]
         return withdrawals
 
-    def get_value(self, balances, market, base='USDT'):
+    def get_value_table(self, balances, market, base='USDT'):
         '''Compute the value of a balances using the current market prices'''
         balances['base'] = base
         balances['price'] = balances.apply(lambda x: market.get_price(x['asset'], x['base']), axis=1)
         balances['value'] = balances['amount'] * balances['price']
-        return sum(balances['value'])
+        return balances
+    
+    def get_value(self, balances, market, base='USDT'):
+        '''Return the sum of balances value table'''
+        mkt = self.get_value_table(balances, market, base)
+        return sum(mkt['value'])
 
     def get_balances_value(self, market, base='USDT'):
         balances = self.get_balances()
