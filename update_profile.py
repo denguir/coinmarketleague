@@ -60,21 +60,24 @@ if __name__ == '__main__':
         try:
             pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=1), today, 'USDT')
             daily_pnl = float(pnl_hist_usdt[pnl_hist_usdt['day'] == today]['cum_pnl_perc'])
-        except:
+        except Exception as e:
+            print(e)
             daily_pnl = None
         
         # Get pnL data wrt to 7d record
         try:
             pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=7), today, 'USDT')
             weekly_pnl = float(pnl_hist_usdt[pnl_hist_usdt['day'] == today]['cum_pnl_perc'])
-        except:
+        except Exception as e:
+            print(e)
             weekly_pnl = None
 
         # Get pnL data wrt to 1m record
         try:
             pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=30), today, 'USDT')
             monthly_pnl = float(pnl_hist_usdt[pnl_hist_usdt['day'] == today]['cum_pnl_perc'])
-        except:
+        except Exception as e:
+            print(e)
             monthly_pnl = None
         
         # update main ranking metrics

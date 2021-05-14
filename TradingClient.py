@@ -71,19 +71,17 @@ class BinanceTradingClient(TradingClient):
         pnl = balance_now - balance_from - deposits + withdrawals 
         return pnl
 
-    def get_daily_balances(self, date_from, date_to, base='USDT'):
+    def get_daily_balances(self, date_from, date_to, market, base='USDT'):
         '''Returns a historical balance time series aggregated by day'''
         snaps = SnapshotAccount.objects.filter(account=self.ta)\
                                        .filter(created_at__range=[date_from, date_to])\
-                                       .annotate(day=TruncDay('created_at'))
-        close_time = snaps.values('day')\
-                          .annotate(close_time=Max('created_at'))\
-                          .values('close_time')
+                                       .annotate(day=TruncDay('created_at'))\
+                                       .values('day')
+                                       .annotate(balance_usdt=Avg('balance_usdt'))\
+                                       .annotate(balance_btc=Avg('balance_btc'))\
+                                       .order_by('day')
 
-        snaps = snaps.filter(created_at__in=close_time).order_by('day')
-        balances = snaps.values('day', 'balance_btc', 'balance_usdt')
-        balance_hist = pd.DataFrame.from_records(balances)
-
+        balance_hist = pd.DataFrame.from_records(snaps)
         if balance_hist.empty:
             balance_hist = pd.DataFrame(columns=['day', 'balance'])
         else:
@@ -100,13 +98,12 @@ class BinanceTradingClient(TradingClient):
         snaps = SnapshotAccount.objects.filter(account=self.ta)\
                                        .filter(created_at__range=[date_from, date_to])\
                                        .annotate(day=TruncDay('created_at'))\
-                                       .values('day')
+                                       .values('day')\
+                                       .annotate(pnl_btc=Sum('pnl_btc'))\
+                                       .annotate(pnl_usdt=Sum('pnl_usdt'))\
+                                       .order_by('day')
 
-        pnl = snaps.annotate(pnl_btc=Sum('pnl_btc'))\
-                   .annotate(pnl_usdt=Sum('pnl_usdt'))\
-                   .order_by('day')
-
-        pnl_hist = pd.DataFrame.from_records(pnl)
+        pnl_hist = pd.DataFrame.from_records(snaps)
 
         if pnl_hist.empty:
             pnl_hist = pd.DataFrame(columns=['day', 'pnl'])
@@ -214,6 +211,7 @@ class BinanceTradingClient(TradingClient):
         date_to = datetime.now(timezone.utc)
         start = market.to_timestamp(date_from)
         end = market.to_timestamp(date_to)
+
         # get balance history
         hist = self.client.get_account_snapshot(type='SPOT', startTime=start, endTime=end)['snapshotVos']
         btc_bal = pd.DataFrame(
@@ -228,7 +226,7 @@ class BinanceTradingClient(TradingClient):
         stats['balance_btc_open'] = stats['balance_btc'].shift(1)
         stats['pnl_usdt'] = stats['balance_usdt'] - stats['balance_usdt_open']
         stats['pnl_btc'] = stats['balance_btc'] - stats['balance_btc_open']
-        stats = stats[['date', 'balance_btc', 'balance_usdt', 'balance_usdt_open', 'pnl_usdt', 'pnl_btc']]
+        stats = stats[['date', 'balance_btc', 'balance_usdt', 'pnl_usdt', 'pnl_btc']]
         
         # get deposit history
         deposits = self.get_deposit_history(date_from, date_to, market)
@@ -243,8 +241,7 @@ class BinanceTradingClient(TradingClient):
                 prices['deposit_value_btc'] = dep['amount'] * prices['close_price_btc']
                 prices['deposit_value_usdt'] = dep['amount'] * prices['close_price_usdt']
                 stats = stats.merge(prices, 'left', left_on='date', right_on='close_date')
-                stats = stats.fillna({'deposit_value_btc': 0.0})
-                stats = stats.fillna({'deposit_value_usdt': 0.0})
+                stats = stats.fillna({'deposit_value_btc': 0.0, 'deposit_value_usdt': 0.0})
 
                 stats['pnl_btc'] = stats['pnl_btc'] - stats['deposit_value_btc']
                 stats['pnl_usdt'] = stats['pnl_usdt'] - stats['deposit_value_usdt']
@@ -263,8 +260,7 @@ class BinanceTradingClient(TradingClient):
                 prices['withdrawal_value_btc'] = wit['amount'] * prices['close_price_btc']
                 prices['withdrawal_value_usdt'] = wit['amount'] * prices['close_price_usdt']
                 stats = stats.merge(prices, 'left', left_on='date', right_on='close_date')
-                stats = stats.fillna({'withdrawal_value_btc': 0.0})
-                stats = stats.fillna({'withdrawal_value_usdt': 0.0})
+                stats = stats.fillna({'withdrawal_value_btc': 0.0, 'withdrawal_value_usdt': 0.0})
 
                 stats['pnl_btc'] = stats['pnl_btc'] + stats['withdrawal_value_btc']
                 stats['pnl_usdt'] = stats['pnl_usdt'] + stats['withdrawal_value_usdt']
