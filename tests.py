@@ -20,20 +20,8 @@ user = User.objects.get(username='Vador')
 ta = TradingAccount.objects.get(user=user)
 tc = TradingClient.trading_from(ta)
 
-balance_btc = tc.get_balances_value(markets[ta.platform], 'BTC')
-print(balance_btc)
-
-balance_details = tc.get_balances()
-print(balance_details)
-
-
-print(tc.get_daily_PnL(today - timedelta(days=31), today, 'USDT'))
-# last_snap = SnapshotAccount.objects.filter(account=ta).latest('created_at')
-# print(last_snap.__dict__)
-# pnl_btc = tc.get_PnL(last_snap, now, markets[ta.platform], 'BTC')
-# print(pnl_btc)
-
-# trader = Trader(user, markets)
-# pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=31), today, 'USDT')
-# print(pnl_hist_usdt)
-# print(pnl_hist_usdt[pnl_hist_usdt['day'] == today]['cum_pnl_perc'])
+market = markets[ta.platform]
+last_snap = SnapshotAccount.objects.filter(account=ta).latest('created_at')
+date_from = now - timedelta(days=31)
+orders = tc.get_order_history(date_from, last_snap, market)
+print(orders)

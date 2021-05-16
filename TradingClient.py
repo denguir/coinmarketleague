@@ -5,7 +5,7 @@ from binance.client import Client as BinanceClient
 from Market import Market
 from django.db.models.functions import TruncDay
 from django.db.models import Avg, Sum
-from traderboard.models import SnapshotAccount
+from traderboard.models import SnapshotAccount, SnapshotAccountDetails
 
 __PLATFORMS__ = ['Binance']
 
@@ -117,9 +117,7 @@ class BinanceTradingClient(TradingClient):
         return pnl_hist
 
     def get_balance_history(self, date_from, date_to, market):
-        start = market.to_timestamp(date_from)
-        end = market.to_timestamp(date_to)
-        info = self.client.get_account_snapshot(type='SPOT', startTime=start, endTime=end)
+        # complete using get_order_history
         pass
 
     def get_deposit_history(self, date_from, date_to, market):
@@ -147,6 +145,27 @@ class BinanceTradingClient(TradingClient):
             withdrawals['amount'] = withdrawals['amount'].astype(float)
             withdrawals = withdrawals[['time', 'asset', 'amount']]
         return withdrawals
+
+    def get_order_history(self, date_from, snap, market):
+        start = market.to_timestamp(date_from)
+        end = market.to_timestamp(snap.created_at)
+        balances = SnapshotAccountDetails.objects.filter(snapshot=snap)
+        balances = pd.DataFrame.from_records(balances.values('asset', 'amount'))
+        orders =  pd.DataFrame(columns=['time', 'asset', 'amount', 'base', 'price', 'side'])
+        for _, bal in balances.iterrows():
+            symbols = market.table[market.table['symbol'].str.startswith(bal['asset'])]['symbol']
+            for symbol in symbols:
+                orders_symbol = self.client.get_all_orders(symbol=symbol, limit=1000)
+                orders_symbol = pd.DataFrame(orders_symbol)
+                if not orders_symbol.empty:
+                    orders_symbol = orders_symbol[orders_symbol["time"].between(start, end)]
+                    orders_symbol['asset'] = bal['asset']
+                    orders_symbol['base'] = symbol.split(bal['asset'], 1)[1]
+                    orders_symbol['amount'] = orders_symbol['executedQty'].astype(float)
+                    orders_symbol['price'] = orders_symbol['price'].astype(float)
+                    orders_symbol = orders_symbol[['time', 'asset', 'amount', 'base', 'price', 'side']]
+                    orders = orders.append(orders_symbol, ignore_index=True)
+        return orders
 
     def get_value_table(self, balances, market, base='USDT'):
         '''Compute the value of a balances using the current market prices'''
