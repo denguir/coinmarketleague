@@ -4,6 +4,7 @@ from binance.client import Client as BinanceClient
 from binance.exceptions import BinanceAPIException
 from multipledispatch import dispatch
 import pandas as pd
+import numpy as np
 
 
 __PLATFORMS__ = ['Binance']
@@ -93,6 +94,22 @@ class BinanceMarket(Market):
         date = self.to_datetime(timestamp)
         return datetime.combine(date, datetime.min.time(), timezone.utc)         
 
+    def round_date(self, date, interval):
+        if interval == '1m':
+            date = date.replace(microsecond=0, second=0)
+        elif interval == '1h':
+            date = date.replace(microsecond=0, second=0, minute=0)
+        elif interval == '1d':
+            date = date.replace(microsecond=0, second=0, minute=0, hour=0)
+        return date
+
+    def timestamp_range(self, date_from, date_to, interval):
+        start = self.round_date(date_from, interval)
+        end = self.round_date(date_to, interval)
+        ts = pd.date_range(start=start, end=end, freq=interval)
+        ts = ts.astype(np.int64) // 10 ** 6
+        return ts
+
     def get_price_table(self):
         '''Return current market price table'''
         prices = self.client.get_all_tickers()
@@ -127,6 +144,50 @@ class BinanceMarket(Market):
             else:
                 price = float(res['price'])
         return price
+
+    def get_price_history(self, asset, base, date_from, date_to, interval):
+        '''Return price history of asset w.r.t base between date_from and date_to'''
+        assert base in self.bases, f"{base} not supported as an exchange base."
+        start = self.to_timestamp(date_from)
+        end = self.to_timestamp(date_to)
+        prices = pd.DataFrame(columns=['open_time', 'open_price'])
+        prices['open_time'] = self.timestamp_range(date_from, date_to, interval)
+        if asset == base:
+            prices['open_price'] = 1.0
+        else:
+            symbol = asset + base
+            try:
+                res = self.client.get_klines(symbol=symbol, interval=interval, startTime=start, endTime=end, limit=1000)
+                prices = pd.DataFrame(
+                        [(row[0], float(row[1])) for row in res], columns=['open_time', 'open_price'])
+            except BinanceAPIException:
+                symbol = base + asset
+                try:
+                    res = self.client.get_klines(symbol=symbol, interval=interval, startTime=start, endTime=end, limit=1000)
+                    prices = pd.DataFrame(
+                        [(row[0], float(row[1])) for row in res], columns=['open_time', 'open_price'])
+                    prices['open_price'] = 1.0 / prices['open_price']
+                except BinanceAPIException:
+                    other_symbols = [asset + other_base for other_base in self.bases]
+                    others = self.table[self.table['symbol'].isin(other_symbols)]
+                    if others.empty:
+                        print(f"Asset {asset} seems to have no exchange with one of the supported bases {self.bases}.")
+                        prices['open_price'] = 0.0
+                    else:
+                        alt_symb = others.iloc[0]['symbol']
+                        alt_base = alt_symb.split(asset, 1)[1]
+                        try:
+                            res = self.client.get_klines(symbol=alt_symb, interval=interval, startTime=start, endTime=end, limit=1000)
+                            prices = pd.DataFrame(
+                                    [(row[0], float(row[1])) for row in res], columns=['open_time', 'open_price'])
+                            prices = prices.merge(self.get_price_history(alt_base, base, date_from, date_to, interval),
+                                                'inner', on='open_time')
+                            prices['open_price'] = prices['open_price_x'] * prices['open_price_y']
+                        except BinanceAPIException:
+                            print(f"Asset {asset} seems to have no exchange with base {alt_base}\
+                                between {date_from} and {date_to}.")
+                            prices['open_price'] = 0.0
+        return prices
 
     def get_daily_prices(self, asset, base, date_from, date_to):
         '''Return daily prices of asset w.r.t base between date_from and date_to'''

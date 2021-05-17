@@ -116,10 +116,6 @@ class BinanceTradingClient(TradingClient):
             pnl_hist = pnl_hist[['day', 'pnl']].fillna({'pnl': 0.0})
         return pnl_hist
 
-    def get_balance_history(self, date_from, date_to, market):
-        # complete using get_order_history
-        pass
-
     def get_deposit_history(self, date_from, date_to, market):
         start = market.to_timestamp(date_from)
         end = market.to_timestamp(date_to)
@@ -155,9 +151,10 @@ class BinanceTradingClient(TradingClient):
         for _, bal in balances.iterrows():
             symbols = market.table[market.table['symbol'].str.startswith(bal['asset'])]['symbol']
             for symbol in symbols:
-                orders_symbol = self.client.get_all_orders(symbol=symbol, limit=1000)
-                orders_symbol = pd.DataFrame(orders_symbol)
-                if not orders_symbol.empty:
+                info = self.client.get_all_orders(symbol=symbol, limit=1000)
+                if info:
+                    orders_symbol = pd.DataFrame(info)
+                    orders_symbol = orders_symbol[orders_symbol["status"].isin(['FILLED', 'PARTIALLY_FILLED'])]
                     orders_symbol = orders_symbol[orders_symbol["time"].between(start, end)]
                     orders_symbol['asset'] = bal['asset']
                     orders_symbol['base'] = symbol.split(bal['asset'], 1)[1]
@@ -166,6 +163,71 @@ class BinanceTradingClient(TradingClient):
                     orders_symbol = orders_symbol[['time', 'asset', 'amount', 'base', 'price', 'side']]
                     orders = orders.append(orders_symbol, ignore_index=True)
         return orders
+
+    def set_balance_history(self, date_from, snap, market, interval='1h'):
+        date_to = snap.created_at
+        orders = self.get_order_history(date_from, snap, market)
+        orders['type'] = orders['side']
+        deposits = self.get_deposit_history(date_from, date_to, market)
+        deposits['type'] = 'DEPOSIT'
+        withdrawals = self.get_withdrawal_history(date_from, date_to, market)
+        withdrawals['type'] = 'WITHDRAWAL'
+        first_event = pd.DataFrame({'time': 0, 'type': 'FIRST'}) # need at least one record
+        historic = pd.concat([orders, deposits, withdrawals, first_event]).sort_value(by='time', ascending=False)
+        # initial balance
+        balances = SnapshotAccountDetails.objects.filter(snapshot=snap)
+        balances = {bal.asset : bal.amount for bal in balances}
+        # get all exchanges to track
+        assets_to_track = set(balances.keys())
+        for _, event in historic.iterrows():
+            assets_to_track = assets_to_track.union(event['asset'])
+            if pd.notna(event['base']):
+                assets_to_track = assets_to_track.union(event['base'])
+        prices = {}
+        for asset in assets_to_track:
+            # get price
+            prices[asset] = market.get_price_history(asset, 'USDT', date_from, date_to, interval)
+            # initialize empty balance
+            if asset not in balances.keys():
+                balances[asset] = 0.0
+
+        # walk through history backwards
+        stats = pd.DataFrame(market.timestamp_range(date_from, date_to, interval), columns=['time'])
+        stats['balance'] = 0.0
+        stats.set_index('time')
+
+        event_id = 0
+        old_event_time = market.to_timestamp(date_to)
+        while event_id < len(historic):
+            new_event = historic.iloc[event_id]
+            new_event_time = new_event['time']
+            for asset, amount in balances.items():
+                asset_hist = prices[asset][prices[asset]['open_time'].between(new_event_time, old_event_time)]
+                asset_hist['balance'] =  asset_hist['open_price'] * amount
+                asset_hist = asset_hist[['open_time', 'balance']].set_index('open_time')
+                stats = stats.add(asset_hist, fill_value=0.0)
+            # update balance, backwards in time
+            if new_event['type'] == 'BUY':
+                balances[new_event['asset']] -= new_event['amount']
+                balances[new_event['base']] += (new_event['amount'] * new_event['price'])
+            elif new_event['type'] == 'SELL':
+                balances[new_event['asset']] += new_event['amount']
+                balances[new_event['base']] -= (new_event['amount'] * new_event['price'])
+            elif new_event['type'] == 'DEPOSIT':
+                balances[new_event['asset']] -= new_event['amount']
+            elif new_event['type'] == 'WITHDRAWAL':
+                balances[new_event['asset']] += new_event['amount']
+
+            old_event_time = new_event_time
+            event_id += 1
+        
+        # save stats history
+        stats = stats.reset_index()
+        stats['balance_open'] = stats['balance'].shift(1)
+        stats['pnl'] = stats['balance'] - stats['balance_open']
+        # TODO:
+        # save last balance_details -> necessary for future backwards calculations
+        # adjust pnl when a deposit or withdrawal is between 2 timestamps
 
     def get_value_table(self, balances, market, base='USDT'):
         '''Compute the value of a balances using the current market prices'''
