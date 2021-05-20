@@ -62,11 +62,17 @@ class BinanceMarket(Market):
         now = datetime.now(timezone.utc).timestamp()
         offset = server_time - int(now * 1000)
         return offset
-
+    
+    @dispatch(datetime)
     def to_timestamp(self, dt):
         # convert server time to UTC time, in ms
         ts = int(dt.timestamp() * 1000 + self.timestamp_offset)
         return ts
+
+    @dispatch(str)
+    def to_timestamp(self, dt):
+        dt = datetime.strptime(dt, '%Y-%m-%d %H:%M:%S')
+        return self.to_timestamp(dt)
 
     @dispatch(int)
     def to_datetime(self, timestamp):
@@ -151,7 +157,8 @@ class BinanceMarket(Market):
         start = self.to_timestamp(date_from)
         end = self.to_timestamp(date_to)
         prices = pd.DataFrame(columns=['open_time', 'open_price'])
-        prices['open_time'] = self.timestamp_range(date_from, date_to, interval)
+        time_range = pd.DataFrame(self.timestamp_range(date_from, date_to, interval), columns=['open_time'])
+        prices['open_time'] = time_range['open_time']
         if asset == base:
             prices['open_price'] = 1.0
         else:
@@ -159,13 +166,13 @@ class BinanceMarket(Market):
             try:
                 res = self.client.get_klines(symbol=symbol, interval=interval, startTime=start, endTime=end, limit=1000)
                 prices = pd.DataFrame(
-                        [(row[0], float(row[1])) for row in res], columns=['open_time', 'open_price'])
+                        [(int(row[0]), float(row[1])) for row in res], columns=['open_time', 'open_price'])
             except BinanceAPIException:
                 symbol = base + asset
                 try:
                     res = self.client.get_klines(symbol=symbol, interval=interval, startTime=start, endTime=end, limit=1000)
                     prices = pd.DataFrame(
-                        [(row[0], float(row[1])) for row in res], columns=['open_time', 'open_price'])
+                        [(int(row[0]), float(row[1])) for row in res], columns=['open_time', 'open_price'])
                     prices['open_price'] = 1.0 / prices['open_price']
                 except BinanceAPIException:
                     other_symbols = [asset + other_base for other_base in self.bases]
@@ -179,7 +186,7 @@ class BinanceMarket(Market):
                         try:
                             res = self.client.get_klines(symbol=alt_symb, interval=interval, startTime=start, endTime=end, limit=1000)
                             prices = pd.DataFrame(
-                                    [(row[0], float(row[1])) for row in res], columns=['open_time', 'open_price'])
+                                    [(int(row[0]), float(row[1])) for row in res], columns=['open_time', 'open_price'])
                             prices = prices.merge(self.get_price_history(alt_base, base, date_from, date_to, interval),
                                                 'inner', on='open_time')
                             prices['open_price'] = prices['open_price_x'] * prices['open_price_y']
@@ -187,6 +194,12 @@ class BinanceMarket(Market):
                             print(f"Asset {asset} seems to have no exchange with base {alt_base}\
                                 between {date_from} and {date_to}.")
                             prices['open_price'] = 0.0
+        # interpolate prices if wholes in query 
+        prices = prices.merge(time_range, how='right', on='open_time')
+        prices['open_price'] = prices['open_price'].interpolate(method='linear').fillna(method='backfill')
+        prices['asset'] = asset
+        prices['base'] = base
+        prices['symbol'] = asset + base
         return prices
 
     def get_daily_prices(self, asset, base, date_from, date_to):

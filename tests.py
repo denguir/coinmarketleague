@@ -13,8 +13,11 @@ from traderboard.models import SnapshotAccount, SnapshotAccountDetails, TradingA
 __PLATFORMS__ = ['Binance']
 
 now = datetime.now(timezone.utc)
-bfr = now - timedelta(days=31)
 market = Market.trading_from('Binance')
 
-df1 = market.get_price_history('GVT', 'USDT', bfr, now, '1h')
-print(df1)
+user = User.objects.get(username='Vador')
+ta = TradingAccount.objects.get(user=user)
+tc = TradingClient.trading_from(ta)
+snap = SnapshotAccount.objects.filter(account=ta).latest('created_at')
+date_from = snap.created_at - timedelta(days=31)
+tc.set_balance_history(date_from, snap, market, interval='1h')

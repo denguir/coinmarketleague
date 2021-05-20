@@ -172,9 +172,9 @@ def add_trading_account(request):
             # load past data when adding a trading account
             try:
                 market = Market.trading_from(ta.platform)
-                tc = TradingClient.trading_from(ta)
-                tc.load_past_stats(datetime.utcnow() - timedelta(days=31), market)
-                messages.success(request, 'Past data loaded successfuly!')
+                # tc = TradingClient.trading_from(ta)
+                # tc.load_past_stats(datetime.utcnow() - timedelta(days=31), market)
+                # messages.success(request, 'Past data loaded successfuly!')
             except Exception as e:
                 print(e)
                 messages.warning(request, 'Failed to fetch past data.')

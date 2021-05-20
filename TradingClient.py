@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from binance.client import Client as BinanceClient
 from Market import Market
 from django.db.models.functions import TruncDay
-from django.db.models import Avg, Sum
+from django.db.models import Max, Sum
 from traderboard.models import SnapshotAccount, SnapshotAccountDetails
 
 __PLATFORMS__ = ['Binance']
@@ -74,13 +74,14 @@ class BinanceTradingClient(TradingClient):
     def get_daily_balances(self, date_from, date_to, base='USDT'):
         '''Returns a historical balance time series aggregated by day'''
         snaps = SnapshotAccount.objects.filter(account=self.ta)\
-                                       .filter(created_at__range=[date_from, date_to])\
                                        .annotate(day=TruncDay('created_at'))\
-                                       .values('day')\
-                                       .annotate(balance_usdt=Avg('balance_usdt'))\
-                                       .annotate(balance_btc=Avg('balance_btc'))\
-                                       .order_by('day')
+                                       .filter(day__range=[date_from, date_to])
+        close_time = snaps.values('day')\
+                          .annotate(close_time=Max('created_at'))\
+                          .values('close_time')
 
+        snaps = snaps.filter(created_at__in=close_time).order_by('day')
+        snaps = snaps.values('day', 'balance_btc', 'balance_usdt')
         balance_hist = pd.DataFrame.from_records(snaps)
         if balance_hist.empty:
             balance_hist = pd.DataFrame(columns=['day', 'balance'])
@@ -96,15 +97,14 @@ class BinanceTradingClient(TradingClient):
     def get_daily_PnL(self, date_from, date_to, base='USDT'):
         '''Returns a historical PnL time series aggregated by day'''
         snaps = SnapshotAccount.objects.filter(account=self.ta)\
-                                       .filter(created_at__range=[date_from, date_to])\
                                        .annotate(day=TruncDay('created_at'))\
+                                       .filter(day__range=[date_from, date_to])\
                                        .values('day')\
                                        .annotate(pnl_btc=Sum('pnl_btc'))\
                                        .annotate(pnl_usdt=Sum('pnl_usdt'))\
                                        .order_by('day')
 
         pnl_hist = pd.DataFrame.from_records(snaps)
-
         if pnl_hist.empty:
             pnl_hist = pd.DataFrame(columns=['day', 'pnl'])
         else:
@@ -123,7 +123,7 @@ class BinanceTradingClient(TradingClient):
         deposits = pd.DataFrame(columns=['time', 'asset', 'amount'])
         if info:
             deposits = pd.DataFrame(info)
-            deposits['time'] = deposits['insertTime']
+            deposits['time'] = deposits['insertTime'].apply(lambda x: market.to_timestamp(x))
             deposits['asset'] = deposits['coin']
             deposits['amount'] = deposits['amount'].astype(float)
             deposits = deposits[['time', 'asset', 'amount']]
@@ -136,7 +136,7 @@ class BinanceTradingClient(TradingClient):
         withdrawals = pd.DataFrame(columns=['time', 'asset', 'amount'])
         if info:
             withdrawals = pd.DataFrame(info)
-            withdrawals['time'] = withdrawals['applyTime']
+            withdrawals['time'] = withdrawals['applyTime'].apply(lambda x: market.to_timestamp(x))
             withdrawals['asset'] = withdrawals['coin']
             withdrawals['amount'] = withdrawals['amount'].astype(float)
             withdrawals = withdrawals[['time', 'asset', 'amount']]
@@ -164,7 +164,7 @@ class BinanceTradingClient(TradingClient):
                     orders = orders.append(orders_symbol, ignore_index=True)
         return orders
 
-    def set_balance_history(self, date_from, snap, market, interval='1h'):
+    def get_balance_history(self, date_from, snap, market, interval='1h'):
         date_to = snap.created_at
         orders = self.get_order_history(date_from, snap, market)
         orders['type'] = orders['side']
@@ -172,29 +172,29 @@ class BinanceTradingClient(TradingClient):
         deposits['type'] = 'DEPOSIT'
         withdrawals = self.get_withdrawal_history(date_from, date_to, market)
         withdrawals['type'] = 'WITHDRAWAL'
-        first_event = pd.DataFrame({'time': 0, 'type': 'FIRST'}) # need at least one record
-        historic = pd.concat([orders, deposits, withdrawals, first_event]).sort_value(by='time', ascending=False)
+        first_event = pd.DataFrame([{'time': 0, 'type': 'FIRST'}]) # need at least one record
+        historic = pd.concat([orders, deposits, withdrawals, first_event]).sort_values(by='time', ascending=False)
         # initial balance
         balances = SnapshotAccountDetails.objects.filter(snapshot=snap)
-        balances = {bal.asset : bal.amount for bal in balances}
+        balances = {bal.asset : float(bal.amount) for bal in balances}
         # get all exchanges to track
         assets_to_track = set(balances.keys())
         for _, event in historic.iterrows():
-            assets_to_track = assets_to_track.union(event['asset'])
+            if pd.notna(event['asset']):
+                assets_to_track = assets_to_track.union(set([event['asset']]))
             if pd.notna(event['base']):
-                assets_to_track = assets_to_track.union(event['base'])
-        prices = {}
+                assets_to_track = assets_to_track.union(set([event['base']]))
+        prices = pd.DataFrame(columns=['open_time', 'open_price', 'asset', 'base', 'symbol'])
         for asset in assets_to_track:
             # get price
-            prices[asset] = market.get_price_history(asset, 'USDT', date_from, date_to, interval)
+            prices = prices.append(market.get_price_history(asset, 'USDT', date_from, date_to, interval), ignore_index=True)
             # initialize empty balance
             if asset not in balances.keys():
                 balances[asset] = 0.0
-
         # walk through history backwards
         stats = pd.DataFrame(market.timestamp_range(date_from, date_to, interval), columns=['time'])
         stats['balance'] = 0.0
-        stats.set_index('time')
+        stats = stats.set_index('time')
 
         event_id = 0
         old_event_time = market.to_timestamp(date_to)
@@ -202,11 +202,12 @@ class BinanceTradingClient(TradingClient):
             new_event = historic.iloc[event_id]
             new_event_time = new_event['time']
             for asset, amount in balances.items():
-                asset_hist = prices[asset][prices[asset]['open_time'].between(new_event_time, old_event_time)]
-                asset_hist['balance'] =  asset_hist['open_price'] * amount
-                asset_hist = asset_hist[['open_time', 'balance']].set_index('open_time')
-                stats = stats.add(asset_hist, fill_value=0.0)
-            # update balance, backwards in time
+                if amount > 0.0:
+                    asset_hist = prices[(prices['asset'] == asset) & (prices['open_time'].between(new_event_time, old_event_time))]
+                    asset_hist['balance'] = asset_hist['open_price'] * amount
+                    asset_hist = asset_hist[['open_time', 'balance']].set_index('open_time')
+                    stats = stats.add(asset_hist, fill_value=0.0)
+            # update balances, backwards in time
             if new_event['type'] == 'BUY':
                 balances[new_event['asset']] -= new_event['amount']
                 balances[new_event['base']] += (new_event['amount'] * new_event['price'])
@@ -221,13 +222,50 @@ class BinanceTradingClient(TradingClient):
             old_event_time = new_event_time
             event_id += 1
         
-        # save stats history
-        stats = stats.reset_index()
+        # get stats history
+        stats = stats.reset_index().rename(columns={'index': 'time'})
+        prices = prices.sort_values('open_time').astype({'open_time': int})
+        # add deposits to pnl computations
+        deposits = deposits.rename(columns={'time': 'deposit_time'}).sort_values('deposit_time').astype({'deposit_time': int})
+        deposits = pd.merge_asof(deposits, prices, left_on='deposit_time', right_on='open_time', by='asset')
+        deposits['deposit'] = deposits['amount'] * deposits['open_price']
+        stats = stats.merge(deposits, how='left', left_on='time', right_on='open_time')
+        stats = stats[['time', 'balance', 'deposit']]
+        # add withdrawals to pnl computations
+        withdrawals = withdrawals.rename(columns={'time': 'withdrawal_time'}).sort_values('withdrawal_time').astype({'withdrawal_time': int})
+        withdrawals = pd.merge_asof(withdrawals, prices, left_on='withdrawal_time', right_on='open_time', by='asset')
+        withdrawals['withdrawal'] = withdrawals['amount'] * withdrawals['open_price']
+        stats = stats.merge(withdrawals, how='left', left_on='time', right_on='open_time')
+        stats = stats[['time', 'balance', 'deposit', 'withdrawal']]
+        # compute PnL
         stats['balance_open'] = stats['balance'].shift(1)
-        stats['pnl'] = stats['balance'] - stats['balance_open']
-        # TODO:
-        # save last balance_details -> necessary for future backwards calculations
-        # adjust pnl when a deposit or withdrawal is between 2 timestamps
+        stats['deposit_open'] = stats['deposit'].shift(1).fillna(0)
+        stats['withdrawal_open'] = stats['withdrawal'].shift(1).fillna(0)
+        stats['pnl'] = stats['balance'] - stats['balance_open'] - stats['deposit_open'] + stats['withdrawal_open']
+
+        return stats, balances
+
+
+    def set_balance_history(self, date_from, snap, market, interval='1h'):
+        stats, balances = self.get_balance_history(date_from, snap, market, interval)
+        stats = stats[~stats['pnl'].isnull()].sort_values('time').reset_index()
+        for i, stat in stats.iterrows():
+            snap = SnapshotAccount(account=self.ta, 
+                                   balance_btc=None, 
+                                   balance_usdt=stat['balance'], 
+                                   pnl_btc=None, 
+                                   pnl_usdt=stat['pnl'], 
+                                   created_at=market.to_datetime(stat['time']),
+                                   updated_at=market.to_datetime(stat['time'])
+                                   )
+            snap.save()
+            if i == 0:
+                # save older snap details for potential more backward loading
+                for asset, amount in balances.items():
+                    if amount > 0.0:
+                        details = SnapshotAccountDetails(snapshot=snap, asset=asset, amount=amount)
+                        details.save()
+
 
     def get_value_table(self, balances, market, base='USDT'):
         '''Compute the value of a balances using the current market prices'''
