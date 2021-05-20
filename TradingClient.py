@@ -83,6 +83,8 @@ class BinanceTradingClient(TradingClient):
         snaps = snaps.filter(created_at__in=close_time).order_by('day')
         snaps = snaps.values('day', 'balance_btc', 'balance_usdt')
         balance_hist = pd.DataFrame.from_records(snaps)
+        print('BALANCE')
+        print(balance_hist)
         if balance_hist.empty:
             balance_hist = pd.DataFrame(columns=['day', 'balance'])
         else:
@@ -105,6 +107,8 @@ class BinanceTradingClient(TradingClient):
                                        .order_by('day')
 
         pnl_hist = pd.DataFrame.from_records(snaps)
+        print('PNL')
+        print(pnl_hist)
         if pnl_hist.empty:
             pnl_hist = pd.DataFrame(columns=['day', 'pnl'])
         else:
@@ -248,9 +252,10 @@ class BinanceTradingClient(TradingClient):
 
     def set_balance_history(self, date_from, snap, market, interval='1h'):
         stats, balances = self.get_balance_history(date_from, snap, market, interval)
-        stats = stats[~stats['pnl'].isnull()].sort_values('time').reset_index()
+        stats = stats.where(pd.notnull(stats), None) # replace nan by None
+        stats = stats.sort_values('time').reset_index()
         for i, stat in stats.iterrows():
-            snap = SnapshotAccount(account=self.ta, 
+            past_snap = SnapshotAccount(account=self.ta, 
                                    balance_btc=None, 
                                    balance_usdt=stat['balance'], 
                                    pnl_btc=None, 
@@ -258,14 +263,17 @@ class BinanceTradingClient(TradingClient):
                                    created_at=market.to_datetime(stat['time']),
                                    updated_at=market.to_datetime(stat['time'])
                                    )
-            snap.save()
+            past_snap.save()
             if i == 0:
                 # save older snap details for potential more backward loading
                 for asset, amount in balances.items():
                     if amount > 0.0:
-                        details = SnapshotAccountDetails(snapshot=snap, asset=asset, amount=amount)
+                        details = SnapshotAccountDetails(snapshot=past_snap, asset=asset, amount=amount)
                         details.save()
-
+            if i == len(stats) - 1:
+                # update pnl of snap to avoid NaN
+                snap.pnl_usdt = float(snap.balance_usdt) - stat['balance']
+                snap.save()
 
     def get_value_table(self, balances, market, base='USDT'):
         '''Compute the value of a balances using the current market prices'''
