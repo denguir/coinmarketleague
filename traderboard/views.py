@@ -1,3 +1,4 @@
+import asyncio
 from Market import Market
 from TradingClient import TradingClient
 from Trader import Trader
@@ -14,7 +15,12 @@ from django.contrib.auth.decorators import login_required
 from django.template.context_processors import csrf
 from verify_email.email_handler import send_verification_email
 from datetime import datetime, timedelta, timezone
-
+from .tasks import get_daily_cumulative_relative_PnL, get_relative_balances, get_daily_balances, \
+get_balances_value, get_daily_PnL, get_trader
+from asgiref.sync import sync_to_async, async_to_sync
+import time
+import os
+os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
 
 def home_out(request):
     '''home page for visitors'''
@@ -48,19 +54,51 @@ def register(request):
         return render(request, 'accounts/register.html', args)
 
 
-@login_required
-def show_profile(request):
-    user = User.objects.get(pk=request.user.id)
-    trader = Trader(user)
+async def show_profile(request):
+    t = time.time()
+    profile = {"overview": False}
     if request.method == 'GET':
         form = ProfileFilterForm(request.GET)
         if form.is_valid():
-            profile = trader.get_profile(form.cleaned_data['date_from'], form.cleaned_data['date_to'], 'USDT', False)
+            date_from = form.cleaned_data['date_from']
+            date_to = form.cleaned_data['date_to']
         else:
             # by default, show last week stats
-            profile = trader.get_profile(datetime.now(timezone.utc) - timedelta(days=7), 
-                                                datetime.now(timezone.utc), 'USDT', False)
+            date_to = datetime.now(timezone.utc)
+            date_from = date_to - timedelta(days=8)
+        
+        balance, balance_percentage, cum_pnl_hist, balance_hist, daily_pnl_hist = \
+            await asyncio.gather(
+                asyncio.create_task(get_balances_value(request.user.id, 'USDT')),
+                asyncio.create_task(get_relative_balances(request.user.id, 'USDT')),
+                asyncio.create_task(get_daily_cumulative_relative_PnL(request.user.id, date_from, date_to, 'USDT')),
+                asyncio.create_task(get_daily_balances(request.user.id, date_from, date_to, 'USDT')),
+                asyncio.create_task(get_daily_PnL(request.user.id, date_from, date_to, 'USDT'))
+            )
+        profile['balance'] = balance
+        profile['balance_percentage'] = balance_percentage
+        profile['cum_pnl_hist'] = cum_pnl_hist
+        profile['balance_hist'] = balance_hist
+        profile['daily_pnl_hist'] = daily_pnl_hist
+        print(time.time() - t)
     return render(request, 'accounts/profile.html', profile)
+
+
+# @login_required
+# def show_profile(request):
+#     t = time.time()
+#     user = User.objects.get(pk=request.user.id)
+#     trader = Trader(user)
+#     if request.method == 'GET':
+#         form = ProfileFilterForm(request.GET)
+#         if form.is_valid():
+#             profile = trader.get_profile(form.cleaned_data['date_from'], form.cleaned_data['date_to'], 'USDT', False)
+#         else:
+#             # by default, show last week stats
+#             profile = trader.get_profile(datetime.now(timezone.utc) - timedelta(days=7), 
+#                                                 datetime.now(timezone.utc), 'USDT', False)
+#     print(time.time() - t)
+#     return render(request, 'accounts/profile.html', profile)
 
 
 @login_required

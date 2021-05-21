@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'widget_tweaks',
     'encrypted_fields',
     'verify_email',
+    'django_q',
 ]
 
 FIELD_ENCRYPTION_KEYS = os.environ.get("FIELD_ENCRYPTION_KEYS").split(" ")
@@ -126,6 +127,8 @@ USE_L10N = True
 
 USE_TZ = True
 
+# Model settings
+DEFAULT_AUTO_FIELD='django.db.models.AutoField'
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.0/howto/static-files/
@@ -168,6 +171,23 @@ VERIFICATION_FAILED_TEMPLATE = os.path.join(HTML_APP_DIR, 'accounts', 'activate_
 # Error messages HTML
 MESSAGE_TAGS = {
     messages.ERROR: 'danger',
+}
+
+# Django Q settings
+Q_CLUSTER = {
+    'name': 'coinmarketleague',
+    'workers': 8,
+    'recycle': 500,
+    'timeout': 60,
+    'compress': True,
+    'save_limit': 250,
+    'queue_limit': 500,
+    'cpu_affinity': 1,
+    'label': 'Django Q',
+    'redis': {
+        'host': '127.0.0.1',
+        'port': 6379,
+        'db': 0, }
 }
 
 # Settings for heroku

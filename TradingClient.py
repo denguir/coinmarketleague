@@ -83,8 +83,6 @@ class BinanceTradingClient(TradingClient):
         snaps = snaps.filter(created_at__in=close_time).order_by('day')
         snaps = snaps.values('day', 'balance_btc', 'balance_usdt')
         balance_hist = pd.DataFrame.from_records(snaps)
-        print('BALANCE')
-        print(balance_hist)
         if balance_hist.empty:
             balance_hist = pd.DataFrame(columns=['day', 'balance'])
         else:
@@ -107,8 +105,6 @@ class BinanceTradingClient(TradingClient):
                                        .order_by('day')
 
         pnl_hist = pd.DataFrame.from_records(snaps)
-        print('PNL')
-        print(pnl_hist)
         if pnl_hist.empty:
             pnl_hist = pd.DataFrame(columns=['day', 'pnl'])
         else:
