@@ -127,8 +127,6 @@ USE_L10N = True
 
 USE_TZ = True
 
-# Model settings
-DEFAULT_AUTO_FIELD='django.db.models.AutoField'
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.0/howto/static-files/
@@ -173,15 +171,14 @@ MESSAGE_TAGS = {
     messages.ERROR: 'danger',
 }
 
-# Django Q settings
+# DB settings
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
+# Django-Q settings
 Q_CLUSTER = {
     'name': 'coinmarketleague',
-    'workers': 8,
-    'recycle': 500,
     'timeout': 60,
     'compress': True,
-    'save_limit': 250,
-    'queue_limit': 500,
     'cpu_affinity': 1,
     'label': 'Django Q',
     'redis': {

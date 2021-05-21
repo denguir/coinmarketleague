@@ -1,58 +1,93 @@
 from Trader import Trader
 from traderboard.models import TradingAccount
-from utils import to_series
+from TradingClient import TradingClient
+from Market import Market
+from traderboard.models import SnapshotAccount, SnapshotAccountDetails, TradingAccount
+from Trader import Trader
 from django.contrib.auth.models import User
-from asgiref.sync import sync_to_async
+from datetime import datetime, timedelta, timezone
 
 
-@sync_to_async
-def get_trader(pk):
-    user = User.objects.get(pk=pk)
-    return Trader(user)
+def take_snapshot(ta, market, now):
+    '''Take snapshot of a TradingAccount'''
+    assert ta.platform == market.platform, f"Trading account and market must belong to the same trading platform:\
+         {ta.platform} != {market.platform}"
+    tc = TradingClient.trading_from(ta)
+    # get balances
+    balance_btc = tc.get_balances_value(market, 'BTC')
+    balance_usdt = tc.get_balances_value(market, 'USDT')
+    # get balance details
+    balance_details = tc.get_balances()
+
+    # Get pnL data wrt to last record 
+    try:
+        last_snap = SnapshotAccount.objects.filter(account=ta).latest('created_at')
+        pnl_btc = tc.get_PnL(last_snap, now, market, 'BTC')
+        pnl_usdt = tc.get_PnL(last_snap, now, market, 'USDT')
+    except Exception as e:
+        print(f'No PnL can be computed for user id {ta.user.id}.\nRoot error: {e}')
+        pnl_btc = None
+        pnl_usdt = None
+
+    # save account snapshot
+    snap = SnapshotAccount(account=ta, balance_btc=balance_btc, balance_usdt=balance_usdt, 
+                            pnl_btc=pnl_btc, pnl_usdt=pnl_usdt, created_at=now, updated_at=now)
+    snap.save()
+
+    # save account details
+    for record in balance_details.itertuples():
+        details = SnapshotAccountDetails(snapshot=snap, asset=record.asset, amount=record.amount)
+        details.save()
+    
+    return snap
 
 
-@sync_to_async
-def get_daily_cumulative_relative_PnL(pk, date_from, date_to, base):
-    user = User.objects.get(pk=pk)
-    trader = Trader(user)
-    cum_pnl_hist = trader.get_daily_cumulative_relative_PnL(date_from, date_to, base)
-    cum_pnl_hist = {'labels': cum_pnl_hist['day'].apply(lambda x: x.strftime('%d %b')).tolist(),
-                    'data': cum_pnl_hist['cum_pnl_perc'].tolist()}
-    return cum_pnl_hist
+def update_profile(user, markets, today):
+    '''Update account level user stats'''
+    trader = Trader(user, markets)
+    # Get pnL data wrt to 24h record 
+    try:
+        pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=2), today, 'USDT')
+        daily_pnl = float(pnl_hist_usdt[pnl_hist_usdt['day'] == today]['cum_pnl_perc'])
+    except Exception as e:
+        print(e)
+        daily_pnl = None
+    
+    # Get pnL data wrt to 7d record
+    try:
+        pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=8), today, 'USDT')
+        weekly_pnl = float(pnl_hist_usdt[pnl_hist_usdt['day'] == today]['cum_pnl_perc'])
+    except Exception as e:
+        print(e)
+        weekly_pnl = None
+
+    # Get pnL data wrt to 1m record
+    try:
+        pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=32), today, 'USDT')
+        monthly_pnl = float(pnl_hist_usdt[pnl_hist_usdt['day'] == today]['cum_pnl_perc'])
+    except Exception as e:
+        print(e)
+        monthly_pnl = None
+    
+    # update main ranking metrics
+    user.profile.daily_pnl = daily_pnl
+    user.profile.weekly_pnl = weekly_pnl
+    user.profile.monthly_pnl = monthly_pnl
+    user.save()
+
+    return user
 
 
-@sync_to_async
-def get_relative_balances(pk, base):
-    user = User.objects.get(pk=pk)
-    trader = Trader(user)
-    balance_percentage = to_series(trader.get_relative_balances(base))
-    return balance_percentage
-
-
-@sync_to_async
-def get_daily_balances(pk, date_from, date_to, base):
-    user = User.objects.get(pk=pk)
-    trader = Trader(user)
-    balance_hist = trader.get_daily_balances(date_from, date_to, base)
-    balance_hist = {'labels': balance_hist['day'].apply(lambda x: x.strftime('%d %b')).tolist(),
-                    'data': balance_hist['balance'].tolist()}
-    return balance_hist
-
-
-@sync_to_async
-def get_balances_value(pk, base):
-    user = User.objects.get(pk=pk)
-    trader = Trader(user)
-    balance = round(trader.get_balances_value(base), 2)
-    return balance
-
-
-@sync_to_async
-def get_daily_PnL(pk, date_from, date_to, base):
-    user = User.objects.get(pk=pk)
-    trader = Trader(user)
-    daily_pnl_hist = trader.get_daily_PnL(date_from, date_to, base)
-    daily_pnl_hist = {'labels': daily_pnl_hist['day'].apply(lambda x: x.strftime('%d %b')).tolist(),
-                      'data': daily_pnl_hist['pnl'].tolist()}
-    return daily_pnl_hist
+def load_account_data(ta):
+    '''Load past data at trading account registration'''
+    now = datetime.now(timezone.utc)
+    date_from = now - timedelta(days=31)
+    market = Market.trading_from(ta.platform)
+    try:
+        snap = SnapshotAccount.objects.filter(account=ta).latest('-created_at')
+    except SnapshotAccount.DoesNotExist:
+        snap = take_snapshot(ta, market, now)
+    
+    tc = TradingClient.trading_from(ta)
+    tc.set_balance_history(date_from, snap, market, '1h')
 
