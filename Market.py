@@ -102,11 +102,11 @@ class BinanceMarket(Market):
 
     def round_date(self, date, interval):
         if interval == '1m':
-            date = date.replace(microsecond=0, second=0)
+            date = date.replace(microsecond=0, second=0, tzinfo=timezone.utc)
         elif interval == '1h':
-            date = date.replace(microsecond=0, second=0, minute=0)
+            date = date.replace(microsecond=0, second=0, minute=0, tzinfo=timezone.utc)
         elif interval == '1d':
-            date = date.replace(microsecond=0, second=0, minute=0, hour=0)
+            date = date.replace(microsecond=0, second=0, minute=0, hour=0, tzinfo=timezone.utc)
         return date
 
     def timestamp_range(self, date_from, date_to, interval):

@@ -1,3 +1,4 @@
+from datetime import date
 from Market import Market
 from TradingClient import TradingClient
 from traderboard.models import TradingAccount
@@ -15,7 +16,6 @@ class Trader(object):
         self.markets = self.load_markets(markets)
         self.tcs = [(TradingClient.trading_from(ta), self.markets[ta.platform]) for ta in self.tas]
 
-
     def load_markets(self, markets):
         if markets:
             return markets
@@ -25,7 +25,6 @@ class Trader(object):
                 if ta.platform not in mkt.keys():
                     mkt[ta.platform] = Market.trading_from(ta.platform)
             return mkt
-
 
     def get_balances(self):
         balances = {}
@@ -38,8 +37,7 @@ class Trader(object):
                 else:
                     balances[asset] = amount
         balances = {asset: amount for asset, amount in balances.items() if amount > 1e-8}
-        return balances
-    
+        return balances 
     
     def get_relative_balances(self, base='USDT'):
         total = 0.0
@@ -58,14 +56,11 @@ class Trader(object):
             balances = {asset: round(value*100/total, 2) for asset, value in balances.items() if value > 1e-8}
         return balances
 
-
     def get_balances_value(self, base='USDT'):
         return sum(tc.get_balances_value(market, base) for tc, market in self.tcs)
 
-
     def get_deposits_value(self, date_from, date_to, base='USDT'):
         return sum(tc.get_deposits_value(date_from, date_to, market, base) for tc, market in self.tcs)
-
 
     def get_daily_deposits_value(self, date_from, date_to, base='USDT'):
         deposits = {}
@@ -78,10 +73,8 @@ class Trader(object):
                     deposits[date] = value
         return deposits
 
-
     def get_withdrawals_value(self, date_from, date_to, base='USDT'):
         return sum(tc.get_withdrawals_value(date_from, date_to, market, base) for tc, market in self.tcs)
-
 
     def get_daily_withdrawals_value(self, date_from, date_to, base='USDT'):
         withdrawals = {}
@@ -94,7 +87,6 @@ class Trader(object):
                     withdrawals[date] = value
         return withdrawals
 
-
     def get_daily_balances(self, date_from, date_to, base='USDT'):
         '''Returns a historical balance time series aggregated by day'''
         balance_hist = pd.DataFrame(columns=['day', 'balance'])
@@ -104,7 +96,6 @@ class Trader(object):
         balance_hist = balance_hist.groupby('day')['balance'].sum()\
                                    .reset_index().sort_values('day')
         return balance_hist
-
 
     def get_daily_PnL(self, date_from, date_to, base='USDT'):
         '''Returns a historical PnL time series aggregated by day'''
@@ -116,7 +107,6 @@ class Trader(object):
                            .reset_index().sort_values('day')
         return pnl_hist
 
-
     def get_daily_relative_PnL(self, date_from, date_to, base='USDT'):
         pnl_hist = self.get_daily_PnL(date_from, date_to, base)
         balance_hist = self.get_daily_balances(date_from, date_to, base)
@@ -126,7 +116,6 @@ class Trader(object):
         rel_pnl_hist = rel_pnl_hist.fillna({'pnl_rel': 0.0})
         return rel_pnl_hist
 
-
     def get_daily_cumulative_PnL(self, date_from, date_to, base='USDT'):
         '''Compute cumulative PnL for day_to w.r.t date_from, using the formula:
         cumPnL(t-n, t) = sum(dailyPnL(k) | k = t-n+1 -> t)'''
@@ -134,14 +123,26 @@ class Trader(object):
         daily_pnl['cum_pnl'] = daily_pnl['pnl'].cumsum()
         return daily_pnl
 
-
     def get_daily_cumulative_relative_PnL(self, date_from, date_to, base='USDT'):
         '''Compute cumulative relative PnL for date_to w.r.t date_from, using the formula:
         cumPnLPercent(t-n, t) = 100 * prod(1 + dailyPnLPercent(k) | k = t-n+1 -> t) - 100'''
         daily_pnl = self.get_daily_relative_PnL(date_from, date_to, base)
         daily_pnl['cum_pnl_perc'] = np.around(100 * np.cumprod(1.0 + daily_pnl['pnl_rel']) - 100, 2)
         return daily_pnl
+    
+    def get_order_history(self, date_from, date_to):
+        order_hist = pd.DataFrame(columns=['created_at', 'symbol', 'amount', 'price', 'side'])
+        for tc, _ in self.tcs:
+            tc_order = tc.get_order_history(date_from, date_to)
+            order_hist = order_hist.append(tc_order)
+        return order_hist
 
+    def get_transaction_history(self, date_from, date_to):
+        trans_hist = pd.DataFrame(columns=['created_at', 'asset', 'amount', 'side'])
+        for tc, _ in self.tcs:
+            tc_trans = tc.get_transaction_history(date_from, date_to)
+            trans_hist = trans_hist.append(tc_trans)
+        return trans_hist
 
     def get_profile(self, date_from, date_to, base='USDT', overview=True):
         '''Process all metrics displayed in user's profile'''
@@ -157,6 +158,10 @@ class Trader(object):
         balance_percentage = to_series(self.get_relative_balances(base))
         profile['balance_percentage'] = balance_percentage
 
+        # get order history
+        trades_hist = self.get_order_history(date_from, date_to)
+        print(trades_hist)
+        
         profile['overview'] = overview
         # get private information
         if not overview:

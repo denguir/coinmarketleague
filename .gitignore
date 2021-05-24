@@ -1,5 +1,6 @@
 migrations/*
 media
+*.rdb
 *.sqlite3
 *.pyc
 .env.dev

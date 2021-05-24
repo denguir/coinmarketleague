@@ -14,7 +14,7 @@ from django.contrib.auth.decorators import login_required
 from django.template.context_processors import csrf
 from verify_email.email_handler import send_verification_email
 from datetime import datetime, timedelta, timezone
-from .tasks import load_account_data
+from .tasks import load_balance_history, load_order_history, load_transaction_history
 from django_q.tasks import async_task
 
 
@@ -173,9 +173,11 @@ def add_trading_account(request):
             messages.success(request, 'Trading account added successfully!')
             # load past data when adding a trading account
             try:
-                async_task(load_account_data, 
-                           ta,
-                           hook=messages.warning(request, 'Account synchronization in progress, this might take a few minutes.'))
+                async_task(load_balance_history, ta)
+                async_task(load_transaction_history, ta)
+                async_task(load_order_history, ta)
+                messages.warning(request, 
+                        'Account synchronization in progress, this might take a few minutes.')
             except Exception as e:
                 print(e)
                 messages.warning(request, 'Failed to fetch past data.')

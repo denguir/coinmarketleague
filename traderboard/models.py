@@ -52,6 +52,28 @@ class SnapshotAccountDetails(models.Model):
     amount = models.DecimalField(max_digits=30, decimal_places=8)
 
 
+class AccountTrades(models.Model):
+    '''Historic of trading moves of TradingAccount'''
+    account = models.ForeignKey(TradingAccount, on_delete=models.CASCADE)
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    asset = models.CharField(max_length=10)
+    base = models.CharField(max_length=10)
+    amount = models.DecimalField(max_digits=30, decimal_places=8)
+    price = models.DecimalField(max_digits=30, decimal_places=8)
+    side = models.CharField(max_length=10)
+
+
+class AccountTransactions(models.Model):
+    '''Historic of transactions of TradingAccount'''
+    account = models.ForeignKey(TradingAccount, on_delete=models.CASCADE)
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    asset = models.CharField(max_length=10)
+    amount = models.DecimalField(max_digits=30, decimal_places=8)
+    side = models.CharField(max_length=10)
+
+
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:

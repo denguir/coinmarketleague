@@ -174,7 +174,7 @@ MESSAGE_TAGS = {
 # DB settings
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
-# Django-Q settings
+# # Django-Q settings
 Q_CLUSTER = {
     'name': 'coinmarketleague',
     'timeout': 60,
@@ -186,6 +186,7 @@ Q_CLUSTER = {
         'port': 6379,
         'db': 0, }
 }
+
 
 # Settings for heroku
 django_heroku.settings(locals())
