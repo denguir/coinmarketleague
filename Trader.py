@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from Market import Market
 from TradingClient import TradingClient
 from traderboard.models import TradingAccount
@@ -159,9 +159,9 @@ class Trader(object):
         profile['balance_percentage'] = balance_percentage
 
         # get order history
-        trades_hist = self.get_order_history(date_from, date_to)
-        print(trades_hist)
-        
+        trades_hist = [{'time': datetime.now().strftime('%d %b %H:%M:%S'), 'symbol': 'ETHUSDT', 'amount': 3, 'side': 'BUY'}]
+        profile['trades_hist'] = trades_hist
+
         profile['overview'] = overview
         # get private information
         if not overview:

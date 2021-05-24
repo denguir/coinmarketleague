@@ -14,7 +14,7 @@ from django.contrib.auth.decorators import login_required
 from django.template.context_processors import csrf
 from verify_email.email_handler import send_verification_email
 from datetime import datetime, timedelta, timezone
-from .tasks import load_balance_history, load_order_history, load_transaction_history
+from .tasks import load_account_data
 from django_q.tasks import async_task
 
 
@@ -62,6 +62,7 @@ def show_profile(request):
             # by default, show last week stats
             profile = trader.get_profile(datetime.now(timezone.utc) - timedelta(days=7), 
                                                 datetime.now(timezone.utc), 'USDT', False)
+        print(profile['trades_hist'])
     return render(request, 'accounts/profile.html', profile)
 
 
@@ -173,9 +174,7 @@ def add_trading_account(request):
             messages.success(request, 'Trading account added successfully!')
             # load past data when adding a trading account
             try:
-                async_task(load_balance_history, ta)
-                async_task(load_transaction_history, ta)
-                async_task(load_order_history, ta)
+                async_task(load_account_data, ta)
                 messages.warning(request, 
                         'Account synchronization in progress, this might take a few minutes.')
             except Exception as e:

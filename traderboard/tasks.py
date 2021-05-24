@@ -28,6 +28,7 @@ def take_snapshot(ta, market, now):
         pnl_usdt = tc.get_PnL(last_snap, now, market, 'USDT')
     except Exception as e:
         print(f'No PnL can be computed for user id {ta.user.id}.\nRoot error: {e}')
+        last_snap = None
         pnl_btc = None
         pnl_usdt = None
 
@@ -41,11 +42,11 @@ def take_snapshot(ta, market, now):
         details = SnapshotAccountDetails(snapshot=snap, asset=record.asset, amount=record.amount)
         details.save()
 
-    # save new orders
-    tc.set_order_history(last_snap.created_at, snap, market)
-    # save new transactions
-    tc.set_transaction_history(last_snap.created_at, snap, market)
-    
+    if last_snap:
+        # save new orders and transactions
+        tc.set_order_history(last_snap.created_at, snap, market)
+        tc.set_transaction_history(last_snap.created_at, snap, market)
+
     return snap
 
 
@@ -103,7 +104,7 @@ def update_all():
 
 # load functions are supposed to be run once at account registration
 
-def load_balance_history(ta):
+def load_account_data(ta):
     '''Load past balance data at trading account registration'''
     now = datetime.now(timezone.utc)
     market = Market.trading_from(ta.platform)
@@ -115,33 +116,7 @@ def load_balance_history(ta):
     date_from = snap.created_at - timedelta(days=31)
     tc = TradingClient.trading_from(ta)
     tc.set_balance_history(date_from, snap, market, '1h')
-
-
-def load_order_history(ta):
-    '''Load past trades at trading account registration'''
-    now = datetime.now(timezone.utc)
-    market = Market.trading_from(ta.platform)
-    try:
-        snap = SnapshotAccount.objects.filter(account=ta).latest('-created_at')
-    except SnapshotAccount.DoesNotExist:
-        snap = take_snapshot(ta, market, now)
-    
-    date_from = snap.created_at - timedelta(days=31)
-    tc = TradingClient.trading_from(ta)
     tc.set_order_history(date_from, snap, market)
-
-
-def load_transaction_history(ta):
-    '''Load past transactions at trading account registration'''
-    now = datetime.now(timezone.utc)
-    market = Market.trading_from(ta.platform)
-    try:
-        snap = SnapshotAccount.objects.filter(account=ta).latest('-created_at')
-    except SnapshotAccount.DoesNotExist:
-        snap = take_snapshot(ta, market, now)
-    
-    date_from = snap.created_at - timedelta(days=31)
-    tc = TradingClient.trading_from(ta)
     tc.set_transaction_history(date_from, snap.created_at, market)
 
 

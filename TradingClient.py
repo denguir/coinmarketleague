@@ -4,7 +4,7 @@ import numpy as np
 from datetime import date, datetime, timedelta, timezone
 from abc import ABC, abstractmethod
 from binance.client import Client as BinanceClient
-from Market import Market
+from Market import BinanceMarket, Market
 from django.db.models.functions import TruncDay
 from django.db.models import Max, Sum
 from traderboard.models import SnapshotAccount, SnapshotAccountDetails, AccountTrades, AccountTransactions
@@ -81,7 +81,7 @@ class BinanceTradingClient(TradingClient):
                                        .annotate(day=TruncDay('created_at'))\
                                        .filter(day__range=[date_from, date_to])
         close_time = snaps.values('day')\
-                          .ansnapnotate(close_time=Max('created_at'))\
+                          .annotate(close_time=Max('created_at'))\
                           .values('close_time')
 
         snaps = snaps.filter(created_at__in=close_time).order_by('day')
@@ -156,7 +156,8 @@ class BinanceTradingClient(TradingClient):
     def get_transaction_history(self, date_from, date_to):
         trans = AccountTransactions.objects.filter(account=self.ta)\
                                            .annotate(day=TruncDay('created_at'))\
-                                           .filter(day_at__range=[date_from, date_to])
+                                           .filter(day__range=[date_from, date_to])\
+                                           .values('created_at', 'asset', 'amount', 'side')
         trans_hist = pd.DataFrame.from_records(trans)
         if trans_hist.empty:
             trans_hist = pd.DataFrame(columns=['created_at', 'asset', 'amount', 'side'])
@@ -164,18 +165,18 @@ class BinanceTradingClient(TradingClient):
             trans_hist = trans_hist[['created_at', 'asset', 'amount', 'side']]
         return trans_hist
 
-    @dispatch(datetime, datetime, Market)
+    @dispatch(datetime, datetime, BinanceMarket)
     def get_transaction_history(self, date_from, date_to, market):
-        withdrawals = self.get_withdrawal_history(self, date_from, date_to, market)
+        withdrawals = self.get_withdrawal_history(date_from, date_to, market)
         withdrawals['side'] = 'WITHDRAWAL'
-        deposits = self.get_deposit_history(self, date_from, date_to, market)
+        deposits = self.get_deposit_history(date_from, date_to, market)
         deposits['side'] = 'DEPOSIT'
         transactions = pd.concat([withdrawals, deposits])
         return transactions
 
     def set_transaction_history(self, date_from, date_to, market):
         transactions = self.get_transaction_history(date_from, date_to, market)
-        for trans in transactions.iterrows():
+        for _, trans in transactions.iterrows():
             move = AccountTransactions(account=self.ta, 
                                         asset=trans['asset'], 
                                         amount=trans['amount'],
@@ -189,7 +190,9 @@ class BinanceTradingClient(TradingClient):
     def get_order_history(self, date_from, date_to):
         orders = AccountTrades.objects.filter(account=self.ta)\
                                       .annotate(day=TruncDay('created_at'))\
-                                      .filter(day_at__range=[date_from, date_to])
+                                      .filter(day__range=[date_from, date_to])\
+                                      .values('created_at', 'asset', 'base', 'amount', 'price', 'side')
+
         order_hist = pd.DataFrame.from_records(orders)
         if order_hist.empty:
             order_hist = pd.DataFrame(columns=['created_at', 'symbol', 'amount', 'price', 'side'])
@@ -198,7 +201,7 @@ class BinanceTradingClient(TradingClient):
             order_hist = order_hist[['created_at', 'symbol', 'amount', 'price', 'side']]
         return order_hist
 
-    @dispatch(datetime, SnapshotAccount, Market)
+    @dispatch(datetime, SnapshotAccount, BinanceMarket)
     def get_order_history(self, date_from, snap, market):
         start = market.to_timestamp(date_from)
         end = market.to_timestamp(snap.created_at)
@@ -222,20 +225,20 @@ class BinanceTradingClient(TradingClient):
         return orders
     
     def set_order_history(self, date_from, snap, market):
-        orders = self.get_order_history(self, date_from, snap, market)
-        for order in orders.iterrows():
+        orders = self.get_order_history(date_from, snap, market)
+        for _, order in orders.iterrows():
             trade = AccountTrades(account=self.ta, 
                                   asset=order['asset'], 
                                   base=order['base'], 
                                   amount=order['amount'], 
                                   price=order['price'], 
                                   side=order['side'],
-                                  created_at=market.to_datetime(trade['time']),
-                                  updated_at=market.to_datetime(trade['time'])
+                                  created_at=market.to_datetime(order['time']),
+                                  updated_at=market.to_datetime(order['time'])
                                 )
             trade.save()
 
-    @dispatch(datetime, datetime, Market)
+    @dispatch(datetime, datetime, BinanceMarket)
     def get_balance_history(self, date_from, date_to, base='USDT'):
         '''Returns a historical balance time series aggregated by day'''
         snaps = SnapshotAccount.objects.filter(account=self.ta)\
@@ -253,7 +256,7 @@ class BinanceTradingClient(TradingClient):
             balance_hist = balance_hist[['day', 'balance']]
         return balance_hist
 
-    @dispatch(datetime, SnapshotAccount, Market, str)
+    @dispatch(datetime, SnapshotAccount, BinanceMarket, str)
     def get_balance_history(self, date_from, snap, market, interval='1h'):
         date_to = snap.created_at
         orders = self.get_order_history(date_from, snap, market)
