@@ -1,5 +1,3 @@
-from Market import Market
-from TradingClient import TradingClient
 from Trader import Trader
 from traderboard.models import Profile, TradingAccount
 from django.contrib.auth.models import User
@@ -14,8 +12,9 @@ from django.contrib.auth.decorators import login_required
 from django.template.context_processors import csrf
 from verify_email.email_handler import send_verification_email
 from datetime import datetime, timedelta, timezone
-from .tasks import load_account_data
-from django_q.tasks import async_task
+from .tasks import load_balance_history, load_order_history, load_transaction_history
+from django_q.tasks import async_task, async_chain
+import time
 
 
 def home_out(request):
@@ -41,7 +40,7 @@ def register(request):
         form = RegistrationForm(request.POST)
         args['form'] = form
         if form.is_valid():
-            inactive_user = send_verification_email(request, form)
+            async_task(send_verification_email, request, form)
             return render(request, 'accounts/activate_account_done.html')
         else:
             return render(request, 'accounts/register.html', args)
@@ -174,7 +173,12 @@ def add_trading_account(request):
             messages.success(request, 'Trading account added successfully!')
             # load past data when adding a trading account
             try:
-                async_task(load_account_data, ta)
+                # time.sleep to avoid api error 
+                async_chain([(load_balance_history, (ta,)), 
+                             (time.sleep, (60,)),
+                             (load_order_history, (ta,)),
+                             (time.sleep, (60,)),
+                             (load_transaction_history, (ta,))])
                 messages.warning(request, 
                         'Account synchronization in progress, this might take a few minutes.')
             except Exception as e:

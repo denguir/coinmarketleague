@@ -1,9 +1,6 @@
-from datetime import date, datetime
 from Market import Market
 from TradingClient import TradingClient
 from traderboard.models import TradingAccount
-from utils import to_series
-from multipledispatch import dispatch
 import numpy as np
 import pandas as pd
 
@@ -36,8 +33,8 @@ class Trader(object):
                     balances[asset] += amount
                 else:
                     balances[asset] = amount
-        balances = {asset: amount for asset, amount in balances.items() if amount > 1e-8}
-        return balances 
+        balances = {asset: amount for asset, amount in balances.items()}
+        return balances
     
     def get_relative_balances(self, base='USDT'):
         total = 0.0
@@ -53,7 +50,8 @@ class Trader(object):
                 else:
                     balances[asset] = value
         if total > 0.0:
-            balances = {asset: round(value*100/total, 2) for asset, value in balances.items() if value > 1e-8}
+            balances = {asset: round(value*100/total, 2) for asset, value in balances.items()}
+            balances = {asset: percentage for asset, percentage in balances.items() if percentage >= 0.1}
         return balances
 
     def get_balances_value(self, base='USDT'):
@@ -135,7 +133,7 @@ class Trader(object):
         for tc, _ in self.tcs:
             tc_order = tc.get_order_history(date_from, date_to)
             order_hist = order_hist.append(tc_order)
-        return order_hist
+        return order_hist.sort_values('created_at', ascending=False)
 
     def get_transaction_history(self, date_from, date_to):
         trans_hist = pd.DataFrame(columns=['created_at', 'asset', 'amount', 'side'])
@@ -155,11 +153,15 @@ class Trader(object):
                         'data': cum_pnl_hist['cum_pnl_perc'].tolist()}
         profile['cum_pnl_hist'] = cum_pnl_hist
         # get balance percentage
-        balance_percentage = to_series(self.get_relative_balances(base))
+        balance_percentage = self.get_relative_balances(base)
+        balance_percentage = {'labels': [key for key in balance_percentage.keys()], 
+                              'data': [value for value in balance_percentage.values()]}
         profile['balance_percentage'] = balance_percentage
 
         # get order history
-        trades_hist = [{'time': datetime.now().strftime('%d %b %H:%M:%S'), 'symbol': 'ETHUSDT', 'amount': 3, 'side': 'BUY'}]
+        trades_hist = self.get_order_history(date_from, date_to)
+        trades_hist['time'] = trades_hist['created_at'].apply(lambda x: x.strftime('%d %b %Y %H:%M:%S'))
+        trades_hist = trades_hist.to_dict('records')
         profile['trades_hist'] = trades_hist
 
         profile['overview'] = overview
@@ -178,5 +180,11 @@ class Trader(object):
             daily_pnl_hist = {'labels': daily_pnl_hist['day'].apply(lambda x: x.strftime('%d %b')).tolist(),
                               'data': daily_pnl_hist['pnl'].tolist()}
             profile['daily_pnl_hist'] = daily_pnl_hist
+
+            # get transaction history
+            trans_hist = self.get_transaction_history(date_from, date_to)
+            trans_hist['time'] = trans_hist['created_at'].apply(lambda x: x.strftime('%d %b %Y %H:%M:%S'))
+            trans_hist = trans_hist.to_dict('records')
+            profile['trans_hist'] = trans_hist
         return profile
 

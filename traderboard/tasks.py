@@ -1,3 +1,4 @@
+import time
 from Trader import Trader
 from TradingClient import TradingClient
 from Market import Market
@@ -104,7 +105,7 @@ def update_all():
 
 # load functions are supposed to be run once at account registration
 
-def load_account_data(ta):
+def load_balance_history(ta):
     '''Load past balance data at trading account registration'''
     now = datetime.now(timezone.utc)
     market = Market.trading_from(ta.platform)
@@ -116,7 +117,31 @@ def load_account_data(ta):
     date_from = snap.created_at - timedelta(days=31)
     tc = TradingClient.trading_from(ta)
     tc.set_balance_history(date_from, snap, market, '1h')
+
+
+def load_order_history(ta):
+    '''Load past balance data at trading account registration'''
+    now = datetime.now(timezone.utc)
+    market = Market.trading_from(ta.platform)
+    try:
+        snap = SnapshotAccount.objects.filter(account=ta).latest('-created_at')
+    except SnapshotAccount.DoesNotExist:
+        snap = take_snapshot(ta, market, now)
+    
+    date_from = snap.created_at - timedelta(days=31)
+    tc = TradingClient.trading_from(ta)
     tc.set_order_history(date_from, snap, market)
+
+
+def load_transaction_history(ta):
+    '''Load past balance data at trading account registration'''
+    now = datetime.now(timezone.utc)
+    market = Market.trading_from(ta.platform)
+    try:
+        snap = SnapshotAccount.objects.filter(account=ta).latest('-created_at')
+    except SnapshotAccount.DoesNotExist:
+        snap = take_snapshot(ta, market, now)
+    
+    date_from = snap.created_at - timedelta(days=31)
+    tc = TradingClient.trading_from(ta)
     tc.set_transaction_history(date_from, snap.created_at, market)
-
-

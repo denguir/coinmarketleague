@@ -8,7 +8,7 @@ from TradingClient import TradingClient
 from datetime import datetime, timedelta, timezone
 from django.contrib.auth.models import User
 from Trader import Trader
-from traderboard.models import SnapshotAccount, SnapshotAccountDetails, TradingAccount
+from traderboard.models import SnapshotAccount, SnapshotAccountDetails, TradingAccount, AccountTrades, AccountTransactions
 
 __PLATFORMS__ = ['Binance']
 

@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'widget_tweaks',
     'encrypted_fields',
     'verify_email',
+    'django_redis',
     'django_q',
 ]
 
@@ -174,17 +175,29 @@ MESSAGE_TAGS = {
 # DB settings
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
+# Django-redis
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": os.environ.get('REDIS_URL'),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "CONNECTION_POOL_KWARGS": {
+                "ssl_cert_reqs": None
+            },
+        }
+    }
+}
+
 # # Django-Q settings
 Q_CLUSTER = {
     'name': 'coinmarketleague',
-    'timeout': 60,
+    'timeout': 120,
+    'retry': 240,
     'compress': True,
     'cpu_affinity': 1,
     'label': 'Django Q',
-    'redis': {
-        'host': '127.0.0.1',
-        'port': 6379,
-        'db': 0, }
+    'redis_conn': CACHES,
 }
 
 
