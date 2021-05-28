@@ -37,9 +37,9 @@
               <!-- Topbar -->
               {% if user.is_authenticated %}
               <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
-                  <a class="navbar-brand mx-auto" href="{% url 'home' %}">CoinMarketLeague</a>
+                  <a class="navbar-brand ml-auto" href="{% url 'home' %}">CoinMarketLeague</a>
                   <!-- Topbar Navbar -->
-                  <ul class="navbar-nav mx-auto">
+                  <ul class="navbar-nav ml-auto">
                       <div class="topbar-divider d-none d-sm-block"></div>
 
                       <!-- Nav Item - User Information -->
@@ -78,7 +78,7 @@
               </nav>
               {% else %}
               <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
-                <a class="navbar-brand" href="{% url 'home_out' %}">CoinMarketLeague</a>
+                <a class="navbar-brand ml-auto" href="{% url 'home_out' %}">CoinMarketLeague</a>
                 <!-- Topbar Navbar -->
                 <ul class="navbar-nav ml-auto">
                     <div class="topbar-divider d-none d-sm-block"></div>

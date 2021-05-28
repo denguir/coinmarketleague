@@ -12,9 +12,8 @@ from django.contrib.auth.decorators import login_required
 from django.template.context_processors import csrf
 from verify_email.email_handler import send_verification_email
 from datetime import datetime, timedelta, timezone
-from .tasks import load_balance_history, load_order_history, load_transaction_history
-from django_q.tasks import async_task, async_chain
-import time
+from .tasks import load_account_history
+from django_q.tasks import async_task
 
 
 def home_out(request):
@@ -40,7 +39,7 @@ def register(request):
         form = RegistrationForm(request.POST)
         args['form'] = form
         if form.is_valid():
-            async_task(send_verification_email, request, form)
+            inactive_user = send_verification_email(request, form)
             return render(request, 'accounts/activate_account_done.html')
         else:
             return render(request, 'accounts/register.html', args)
@@ -61,7 +60,6 @@ def show_profile(request):
             # by default, show last week stats
             profile = trader.get_profile(datetime.now(timezone.utc) - timedelta(days=7), 
                                                 datetime.now(timezone.utc), 'USDT', False)
-        print(profile['trades_hist'])
     return render(request, 'accounts/profile.html', profile)
 
 
@@ -173,12 +171,7 @@ def add_trading_account(request):
             messages.success(request, 'Trading account added successfully!')
             # load past data when adding a trading account
             try:
-                # time.sleep to avoid api error 
-                async_chain([(load_balance_history, (ta,)), 
-                             (time.sleep, (60,)),
-                             (load_order_history, (ta,)),
-                             (time.sleep, (60,)),
-                             (load_transaction_history, (ta,))])
+                async_task(load_account_history, ta)
                 messages.warning(request, 
                         'Account synchronization in progress, this might take a few minutes.')
             except Exception as e:
@@ -186,7 +179,8 @@ def add_trading_account(request):
                 messages.warning(request, 'Failed to fetch past data.')
             return redirect('trading_accounts')
         else:
-            messages.error(request, 'Invalid API information.')
+            messages.error(request, 'Invalid API information. \n\
+                Make sure your api keys are valid and not already used in another account.')
             return redirect('add_trading_account')
     else:
         form = AddTradingAccountForm(user=request.user)

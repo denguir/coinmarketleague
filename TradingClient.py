@@ -256,8 +256,7 @@ class BinanceTradingClient(TradingClient):
             balance_hist = balance_hist[['day', 'balance']]
         return balance_hist
 
-    @dispatch(datetime, SnapshotAccount, BinanceMarket, str)
-    def get_balance_history(self, date_from, snap, market, interval='1h'):
+    def get_account_history(self, date_from, snap, market, interval='1h'):
         date_to = snap.created_at
         orders = self.get_order_history(date_from, snap, market)
         orders['type'] = orders['side']
@@ -266,13 +265,13 @@ class BinanceTradingClient(TradingClient):
         withdrawals = self.get_withdrawal_history(date_from, date_to, market)
         withdrawals['type'] = 'WITHDRAWAL'
         first_event = pd.DataFrame([{'time': 0, 'type': 'FIRST'}]) # need at least one record
-        historic = pd.concat([orders, deposits, withdrawals, first_event]).sort_values(by='time', ascending=False)
+        events = pd.concat([orders, deposits, withdrawals, first_event]).sort_values(by='time', ascending=False)
         # initial balance
         balances = SnapshotAccountDetails.objects.filter(snapshot=snap)
         balances = {bal.asset : float(bal.amount) for bal in balances}
         # get all exchanges to track
         assets_to_track = set(balances.keys())
-        for _, event in historic.iterrows():
+        for _, event in events.iterrows():
             if pd.notna(event['asset']):
                 assets_to_track = assets_to_track.union(set([event['asset']]))
             if pd.notna(event['base']):
@@ -291,8 +290,8 @@ class BinanceTradingClient(TradingClient):
 
         event_id = 0
         old_event_time = market.to_timestamp(date_to)
-        while event_id < len(historic):
-            new_event = historic.iloc[event_id]
+        while event_id < len(events):
+            new_event = events.iloc[event_id]
             new_event_time = new_event['time']
             for asset, amount in balances.items():
                 if amount > 0.0:
@@ -336,13 +335,14 @@ class BinanceTradingClient(TradingClient):
         stats['withdrawal_open'] = stats['withdrawal'].shift(1).fillna(0)
         stats['pnl'] = stats['balance'] - stats['balance_open'] - stats['deposit_open'] + stats['withdrawal_open']
 
-        return stats, balances
+        return stats, balances, events
 
 
-    def set_balance_history(self, date_from, snap, market, interval='1h'):
-        stats, balances = self.get_balance_history(date_from, snap, market, interval)
+    def load_account_history(self, date_from, snap, market, interval='1h'):
+        stats, balances, events = self.get_account_history(date_from, snap, market, interval)
         stats = stats.where(pd.notnull(stats), None) # replace nan by None
         stats = stats.sort_values('time').reset_index()
+        # load balance history
         for i, stat in stats.iterrows():
             past_snap = SnapshotAccount(account=self.ta, 
                                    balance_btc=None, 
@@ -363,6 +363,29 @@ class BinanceTradingClient(TradingClient):
                 # update pnl of snap to avoid NaN
                 snap.pnl_usdt = float(snap.balance_usdt) - stat['balance']
                 snap.save()
+        # load order history and transaction history
+        for i, event in events.iterrows():
+            if event['type'] in ['BUY', 'SELL']:
+                trade = AccountTrades(account=self.ta, 
+                                      asset=event['asset'], 
+                                      base=event['base'], 
+                                      amount=event['amount'], 
+                                      price=event['price'], 
+                                      side=event['type'],
+                                      created_at=market.to_datetime(event['time']),
+                                      updated_at=market.to_datetime(event['time'])
+                                      )
+                trade.save()
+            elif event['type'] in ['DEPOSIT', 'WITHDRAWAL']:
+                trans = AccountTransactions(account=self.ta, 
+                                            asset=event['asset'], 
+                                            amount=event['amount'],
+                                            side=event['type'],
+                                            created_at=market.to_datetime(event['time']),
+                                            updated_at=market.to_datetime(event['time'])
+                                            )
+                trans.save()
+
 
     def get_value_table(self, balances, market, base='USDT'):
         '''Compute the value of a balances using the current market prices'''
