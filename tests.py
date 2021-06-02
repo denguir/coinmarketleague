@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from django.contrib.auth.models import User
 from Trader import Trader
 from traderboard.models import SnapshotAccount, SnapshotAccountDetails, TradingAccount, AccountTrades, AccountTransactions
+import time
 
 __PLATFORMS__ = ['Binance']
 
@@ -18,6 +19,10 @@ market = Market.trading_from('Binance')
 user = User.objects.get(username='Vador')
 ta = TradingAccount.objects.get(user=user)
 tc = TradingClient.trading_from(ta)
-snap = SnapshotAccount.objects.filter(account=ta).latest('-created_at')
-date_from = snap.created_at - timedelta(days=31)
-tc.set_order_history(snap.created_at - timedelta(days=31), snap, market)
+# snap = SnapshotAccount.objects.filter(account=ta).latest('-created_at')
+# date_from = snap.created_at - timedelta(days=31)
+# orders = tc.get_order_history(date_from, snap, market)
+# print(orders)
+
+print(market.table.head())
+print(len(market.table))

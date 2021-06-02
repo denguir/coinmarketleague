@@ -177,8 +177,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 # # Django-Q settings
 Q_CLUSTER = {
     'name': 'coinmarketleague',
-    'timeout': 180,
-    'retry': 240,
+    'timeout': 1200,
+    'retry': 3600,
     'compress': True,
     'cpu_affinity': 1,
     'label': 'Django Q',

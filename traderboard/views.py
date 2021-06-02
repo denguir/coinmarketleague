@@ -173,7 +173,7 @@ def add_trading_account(request):
             try:
                 async_task(load_account_history, ta)
                 messages.warning(request, 
-                        'Account synchronization in progress, this might take a few minutes.')
+                        'Account synchronization in progress, this should take about 15 minutes.')
             except Exception as e:
                 print(e)
                 messages.warning(request, 'Failed to fetch past data.')

@@ -2,7 +2,7 @@ import time
 from Trader import Trader
 from TradingClient import TradingClient
 from Market import Market
-from traderboard.models import SnapshotAccount, SnapshotAccountDetails, TradingAccount
+from traderboard.models import SnapshotAccount, SnapshotAccountDetails, AccountTrades, AccountTransactions
 from Trader import Trader
 from datetime import datetime, timedelta, timezone
 from django.contrib.auth.models import User
@@ -43,11 +43,6 @@ def take_snapshot(ta, market, now):
         details = SnapshotAccountDetails(snapshot=snap, asset=record.asset, amount=record.amount)
         details.save()
 
-    if last_snap:
-        # save new orders and transactions
-        tc.set_order_history(last_snap.created_at, snap, market)
-        tc.set_transaction_history(last_snap.created_at, snap.created_at, market)
-
     return snap
 
 
@@ -87,7 +82,32 @@ def update_profile(user, markets, today):
     return user
 
 
+def update_order_history(ta, now, market):
+    '''Update AccountTrades database with recent trades'''
+    try:
+        snap = AccountTrades.objects.filter(account=ta).latest('created_at')
+        date_from = snap.created_at
+    except AccountTrades.DoesNotExist:
+        date_from = now - timedelta(days=31)
+    
+    tc = TradingClient.trading_from(ta)
+    tc.set_order_history(date_from, now, market)
+
+
+def update_transaction_history(ta, now, market):
+    '''Update AccountTransactions database with recent funds transaction'''
+    try:
+        snap = AccountTransactions.objects.filter(account=ta).latest('created_at')
+        date_from = snap.created_at
+    except AccountTransactions.DoesNotExist:
+        date_from = now - timedelta(days=31)
+    
+    tc = TradingClient.trading_from(ta)
+    tc.set_order_history(date_from, now, market)
+
+
 # load functions are supposed to be run once at account registration
+
 
 def load_account_history(ta):
     '''Load past balance data at trading account registration'''
@@ -101,4 +121,8 @@ def load_account_history(ta):
     date_from = snap.created_at - timedelta(days=31)
     tc = TradingClient.trading_from(ta)
     tc.load_account_history(date_from, snap, market, '1h')
-    print(f'Historic of account {ta.id} loaded.')
+    print(f'Historic of account {ta.id} is loading...')
+
+
+
+    

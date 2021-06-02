@@ -1,4 +1,5 @@
 from multipledispatch import dispatch
+import time
 import pandas as pd
 import numpy as np
 from datetime import date, datetime, timedelta, timezone
@@ -201,31 +202,35 @@ class BinanceTradingClient(TradingClient):
             order_hist = order_hist[['created_at', 'symbol', 'amount', 'price', 'side']]
         return order_hist
 
-    @dispatch(datetime, SnapshotAccount, BinanceMarket)
-    def get_order_history(self, date_from, snap, market):
+    @dispatch(datetime, datetime, BinanceMarket)
+    def get_order_history(self, date_from, date_to, market):
         start = market.to_timestamp(date_from)
-        end = market.to_timestamp(snap.created_at)
-        balances = SnapshotAccountDetails.objects.filter(snapshot=snap)
-        balances = pd.DataFrame.from_records(balances.values('asset', 'amount'))
+        end = market.to_timestamp(date_to)
         orders =  pd.DataFrame(columns=['time', 'asset', 'amount', 'base', 'price', 'side'])
-        for _, bal in balances.iterrows():
-            symbols = market.table[market.table['symbol'].str.startswith(bal['asset'])]['symbol']
-            for symbol in symbols:
-                info = self.client.get_all_orders(symbol=symbol, limit=1000)
-                if info:
-                    orders_symbol = pd.DataFrame(info)
-                    orders_symbol = orders_symbol[orders_symbol["status"].isin(['FILLED', 'PARTIALLY_FILLED'])]
-                    orders_symbol = orders_symbol[orders_symbol["time"].between(start, end)]
-                    orders_symbol['asset'] = bal['asset']
-                    orders_symbol['base'] = symbol.split(bal['asset'], 1)[1]
-                    orders_symbol['amount'] = orders_symbol['executedQty'].astype(float)
-                    orders_symbol['price'] = orders_symbol['price'].astype(float)
-                    orders_symbol = orders_symbol[['time', 'asset', 'amount', 'base', 'price', 'side']]
-                    orders = orders.append(orders_symbol, ignore_index=True)
+
+        for i, exchange in market.table.iterrows():
+            info = self.client.get_all_orders(symbol=exchange['symbol'], limit=1000)
+            if info:
+                orders_symbol = pd.DataFrame(info)
+                orders_symbol = orders_symbol[orders_symbol["status"].isin(['FILLED', 'PARTIALLY_FILLED'])]
+                orders_symbol = orders_symbol[orders_symbol["time"].between(start, end)]
+                orders_symbol['asset'] = exchange['baseAsset']
+                orders_symbol['base'] = exchange['quoteAsset']
+                orders_symbol['amount'] = orders_symbol['executedQty'].astype(float)
+                orders_symbol['price'] = orders_symbol['price'].astype(float)
+                orders_symbol = orders_symbol[orders_symbol['amount'] > 0.0]
+                orders_symbol = orders_symbol[['time', 'asset', 'amount', 'base', 'price', 'side']]
+                orders = orders.append(orders_symbol, ignore_index=True)
+            
+            if i % 100 == 99:
+                # avoid API error by marking a 1 min pause
+                time.sleep(60)
+
+        orders = orders.sort_values('time')
         return orders
     
-    def set_order_history(self, date_from, snap, market):
-        orders = self.get_order_history(date_from, snap, market)
+    def set_order_history(self, date_from, date_to, market):
+        orders = self.get_order_history(date_from, date_to, market)
         for _, order in orders.iterrows():
             trade = AccountTrades(account=self.ta, 
                                   asset=order['asset'], 
@@ -258,7 +263,7 @@ class BinanceTradingClient(TradingClient):
 
     def get_account_history(self, date_from, snap, market, interval='1h'):
         date_to = snap.created_at
-        orders = self.get_order_history(date_from, snap, market)
+        orders = self.get_order_history(date_from, date_to, market)
         orders['type'] = orders['side']
         deposits = self.get_deposit_history(date_from, date_to, market)
         deposits['type'] = 'DEPOSIT'
@@ -277,6 +282,7 @@ class BinanceTradingClient(TradingClient):
             if pd.notna(event['base']):
                 assets_to_track = assets_to_track.union(set([event['base']]))
         prices = pd.DataFrame(columns=['open_time', 'open_price', 'asset', 'base', 'symbol'])
+        time.sleep(60) # to avoid API error
         for asset in assets_to_track:
             # get price
             prices = prices.append(market.get_price_history(asset, 'USDT', date_from, date_to, interval), ignore_index=True)

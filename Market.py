@@ -121,6 +121,13 @@ class BinanceMarket(Market):
         prices = self.client.get_all_tickers()
         price_table = pd.DataFrame(prices)
         price_table = price_table.astype({"symbol": str, "price": float})
+
+        symbol_info = self.client.get_exchange_info()['symbols']
+        symbol_cols = ['symbol', 'baseAsset', 'quoteAsset', 'baseAssetPrecision', 'quoteAssetPrecision']
+        symbol_info = [{key: info[key] for key in symbol_cols} for info in symbol_info]
+        symbol_table = pd.DataFrame(symbol_info)
+
+        price_table = price_table.merge(symbol_table, on='symbol')
         return price_table.drop_duplicates()
     
     def get_price(self, asset, base):
