@@ -111,16 +111,12 @@ def update_transaction_history(ta, now, market):
 
 def load_account_history(ta):
     '''Load past balance data at trading account registration'''
-    now = datetime.now(timezone.utc)
     market = Market.trading_from(ta.platform)
-    try:
-        snap = SnapshotAccount.objects.filter(account=ta).latest('-created_at')
-    except SnapshotAccount.DoesNotExist:
-        snap = take_snapshot(ta, market, now)
-    
-    date_from = snap.created_at - timedelta(days=31)
+    now = datetime.now(timezone.utc)
+    date_from = now - timedelta(days=29)
     tc = TradingClient.trading_from(ta)
-    tc.load_account_history(date_from, snap, market, '1h')
+    tc.load_account_history(date_from, now, market)
+    take_snapshot(ta, market, now)
     print(f'Historic of account {ta.id} is loading...')
 
 

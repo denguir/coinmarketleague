@@ -100,18 +100,27 @@ class BinanceMarket(Market):
         date = self.to_datetime(timestamp)
         return datetime.combine(date, datetime.min.time(), timezone.utc)         
 
-    def round_date(self, date, interval):
+    def round_date(self, date, interval, mode='open'):
         if interval == '1m':
-            date = date.replace(microsecond=0, second=0, tzinfo=timezone.utc)
+            if mode == 'open':
+                date = date.replace(microsecond=0, second=0, tzinfo=timezone.utc)
+            else:
+                date = date.replace(microsecond=999999, second=59, tzinfo=timezone.utc)
         elif interval == '1h':
-            date = date.replace(microsecond=0, second=0, minute=0, tzinfo=timezone.utc)
+            if mode == 'open':
+                date = date.replace(microsecond=0, second=0, minute=0, tzinfo=timezone.utc)
+            else:
+                date = date.replace(microsecond=999999, second=59, minute=59, tzinfo=timezone.utc)
         elif interval == '1d':
-            date = date.replace(microsecond=0, second=0, minute=0, hour=0, tzinfo=timezone.utc)
+            if mode == 'open':
+                date = date.replace(microsecond=0, second=0, minute=0, hour=0, tzinfo=timezone.utc)
+            else:
+                date = date.replace(microsecond=999999, second=59, minute=59, hour=23, tzinfo=timezone.utc)
         return date
 
-    def timestamp_range(self, date_from, date_to, interval):
-        start = self.round_date(date_from, interval)
-        end = self.round_date(date_to, interval)
+    def timestamp_range(self, date_from, date_to, interval, mode='open'):
+        start = self.round_date(date_from, interval, mode)
+        end = self.round_date(date_to, interval, mode)
         ts = pd.date_range(start=start, end=end, freq=interval)
         ts = ts.astype(np.int64) // 10 ** 6
         return ts
@@ -164,46 +173,59 @@ class BinanceMarket(Market):
         start = self.to_timestamp(date_from)
         end = self.to_timestamp(date_to)
         prices = pd.DataFrame(columns=['open_time', 'open_price'])
-        time_range = pd.DataFrame(self.timestamp_range(date_from, date_to, interval), columns=['open_time'])
+        time_range = pd.DataFrame({
+                     'open_time': self.timestamp_range(date_from, date_to, interval, 'open'),
+                     'close_time': self.timestamp_range(date_from, date_to, interval, 'clsoe')
+                    })
         prices['open_time'] = time_range['open_time']
+        prices['close_time'] = time_range['close_time']
         if asset == base:
             prices['open_price'] = 1.0
+            prices['close_prices'] = 1.0
         else:
             symbol = asset + base
             try:
                 res = self.client.get_klines(symbol=symbol, interval=interval, startTime=start, endTime=end, limit=1000)
                 prices = pd.DataFrame(
-                        [(int(row[0]), float(row[1])) for row in res], columns=['open_time', 'open_price'])
+                            [(int(row[0]), float(row[1]), int(row[6]), float(row[4])) for row in res], 
+                            columns=['open_time', 'open_price', 'close_time', 'close_price'])
             except BinanceAPIException:
                 symbol = base + asset
                 try:
                     res = self.client.get_klines(symbol=symbol, interval=interval, startTime=start, endTime=end, limit=1000)
                     prices = pd.DataFrame(
-                        [(int(row[0]), float(row[1])) for row in res], columns=['open_time', 'open_price'])
+                                [(int(row[0]), float(row[1]), int(row[6]), float(row[4])) for row in res], 
+                                columns=['open_time', 'open_price', 'close_time', 'close_price'])
                     prices['open_price'] = 1.0 / prices['open_price']
+                    prices['close_price'] = 1.0 / prices['close_price']
                 except BinanceAPIException:
                     other_symbols = [asset + other_base for other_base in self.bases]
                     others = self.table[self.table['symbol'].isin(other_symbols)]
                     if others.empty:
                         print(f"Asset {asset} seems to have no exchange with one of the supported bases {self.bases}.")
                         prices['open_price'] = 0.0
+                        prices['close_price'] = 0.0
                     else:
                         alt_symb = others.iloc[0]['symbol']
                         alt_base = alt_symb.split(asset, 1)[1]
                         try:
                             res = self.client.get_klines(symbol=alt_symb, interval=interval, startTime=start, endTime=end, limit=1000)
                             prices = pd.DataFrame(
-                                    [(int(row[0]), float(row[1])) for row in res], columns=['open_time', 'open_price'])
+                                        [(int(row[0]), float(row[1]), int(row[6]), float(row[4])) for row in res], 
+                                        columns=['open_time', 'open_price', 'close_time', 'close_price'])
                             prices = prices.merge(self.get_price_history(alt_base, base, date_from, date_to, interval),
-                                                'inner', on='open_time')
+                                                'inner', on=['open_time', 'close_time'])
                             prices['open_price'] = prices['open_price_x'] * prices['open_price_y']
+                            prices['close_price'] = prices['close_price_x'] * prices['close_price_y']
                         except BinanceAPIException:
                             print(f"Asset {asset} seems to have no exchange with base {alt_base}\
                                 between {date_from} and {date_to}.")
                             prices['open_price'] = 0.0
+                            prices['close_price'] = 0.0
         # interpolate prices if wholes in query 
-        prices = prices.merge(time_range, how='right', on='open_time')
+        prices = prices.merge(time_range, how='right', on=['open_time', 'close_time'])
         prices['open_price'] = prices['open_price'].interpolate(method='linear').fillna(method='backfill')
+        prices['close_price'] = prices['close_price'].interpolate(method='linear').fillna(method='backfill')
         prices['asset'] = asset
         prices['base'] = base
         prices['symbol'] = asset + base

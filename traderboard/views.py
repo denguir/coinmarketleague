@@ -13,7 +13,6 @@ from django.template.context_processors import csrf
 from verify_email.email_handler import send_verification_email
 from datetime import datetime, timedelta, timezone
 from .tasks import load_account_history
-from django_q.tasks import async_task
 
 
 def home_out(request):
@@ -172,13 +171,13 @@ def add_trading_account(request):
             ta = form.save()
             messages.success(request, 'Trading account added successfully!')
             # load past data when adding a trading account
-            # try:
-            #     async_task(load_account_history, ta)
-            #     messages.warning(request, 
-            #             'Account synchronization in progress, this should take about 15 minutes.')
-            # except Exception as e:
-            #     print(e)
-            #     messages.warning(request, 'Failed to fetch past data.')
+            try:
+                load_account_history(ta)
+                messages.warning(request, 
+                        'Account synchronization success.')
+            except Exception as e:
+                print(e)
+                messages.warning(request, 'Failed to fetch past data.')
             return redirect('trading_accounts')
         else:
             messages.error(request, 'Invalid API information. \n\
