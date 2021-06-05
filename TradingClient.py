@@ -76,6 +76,21 @@ class BinanceTradingClient(TradingClient):
         pnl = balance_now - balance_from - deposits + withdrawals 
         return pnl
 
+
+    def get_PnL(self, snap, now, market, base='USDT'):
+        deposits = self.get_deposits_value(snap.created_at, now, market, base)
+        withdrawals = self.get_withdrawals_value(snap.created_at, now, market, base)
+        balance_now = self.get_balances_value(market, base)
+
+        if base == 'USDT':
+            balance_from = float(snap.balance_usdt)
+        elif base == 'BTC':
+            balance_from = float(snap.balance_btc)
+
+        pnl = balance_now - balance_from - deposits + withdrawals 
+        return pnl
+
+
     def get_daily_balances(self, date_from, date_to, base='USDT'):
         '''Returns a historical balance time series aggregated by day'''
         snaps = SnapshotAccount.objects.filter(account=self.ta)\
@@ -100,7 +115,7 @@ class BinanceTradingClient(TradingClient):
         return balance_hist
 
     def get_daily_PnL(self, date_from, date_to, base='USDT'):
-        '''Returns a historical PnL time series aggregated by day'''
+        '''Return a historical PnL time series aggregated by day'''
         snaps = SnapshotAccount.objects.filter(account=self.ta)\
                                        .annotate(day=TruncDay('created_at'))\
                                        .filter(day__range=[date_from, date_to])\
@@ -120,6 +135,15 @@ class BinanceTradingClient(TradingClient):
 
             pnl_hist = pnl_hist[['day', 'pnl']].fillna({'pnl': 0.0})
         return pnl_hist
+
+    def get_daily_relative_PnL(self, date_from, date_to, base='USDT'):
+        '''Return a historical rel PnL time series aggreagated by dat.'''
+        snaps = SnapshotAccount.objects.filter(account=self.ta)\
+                                       .annotate(day=TruncDay('created_at'))\
+                                       .filter(day__range=[date_from, date_to])
+        pnl_hist = pd.DataFrame.from_records(snaps)
+        
+
 
     def get_deposit_history(self, date_from, date_to, market):
         start = market.to_timestamp(date_from)

@@ -60,6 +60,7 @@ def show_profile(request):
             # by default, show last week stats
             profile = trader.get_profile(datetime.now(timezone.utc) - timedelta(days=7), 
                                                 datetime.now(timezone.utc), 'USDT', False)
+            profile['user'] = request.user
     return render(request, 'accounts/profile.html', profile)
 
 
@@ -76,6 +77,7 @@ def show_overview_profile(request, pk=None):
             # by default, show last week stats
             profile = trader.get_profile(datetime.now(timezone.utc) - timedelta(days=7),
                                                  datetime.now(timezone.utc), 'USDT', not user.profile.public)
+            profile['user'] = request.user
     return render(request, 'accounts/profile.html', profile)
 
 
@@ -170,13 +172,13 @@ def add_trading_account(request):
             ta = form.save()
             messages.success(request, 'Trading account added successfully!')
             # load past data when adding a trading account
-            try:
-                async_task(load_account_history, ta)
-                messages.warning(request, 
-                        'Account synchronization in progress, this should take about 15 minutes.')
-            except Exception as e:
-                print(e)
-                messages.warning(request, 'Failed to fetch past data.')
+            # try:
+            #     async_task(load_account_history, ta)
+            #     messages.warning(request, 
+            #             'Account synchronization in progress, this should take about 15 minutes.')
+            # except Exception as e:
+            #     print(e)
+            #     messages.warning(request, 'Failed to fetch past data.')
             return redirect('trading_accounts')
         else:
             messages.error(request, 'Invalid API information. \n\

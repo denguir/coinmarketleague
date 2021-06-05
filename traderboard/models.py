@@ -38,10 +38,9 @@ class SnapshotAccount(models.Model):
     # balance value
     balance_btc = models.DecimalField(max_digits=30, decimal_places=8, default=None, null=True)
     balance_usdt = models.DecimalField(max_digits=30, decimal_places=2)
-    # these are profit and losses from the last snapshot: pnl(t-1; t),
-    # note that pnl(t-2; t) = pnl(t-2; t-1) + pnl(t-1; t) * bal(t-1)/bal(t-2)
-    pnl_btc =  models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
-    pnl_usdt =  models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
+    # absolute PnL wrt last snapshot
+    pnl_btc =  models.DecimalField(max_digits=30, decimal_places=8, default=None, null=True)
+    pnl_usdt =  models.DecimalField(max_digits=30, decimal_places=2, default=None, null=True)
 
 
 class SnapshotAccountDetails(models.Model):

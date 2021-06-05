@@ -146,7 +146,7 @@ class Trader(object):
         '''Process all metrics displayed in user's profile'''
         # TODO:
         # use dispatch to overload fct with df as param to speed up computation
-        profile = {'user': self.user, 'currency': base}
+        profile = {'trader': self.user, 'currency': base}
         # get PnL aggregated history
         cum_pnl_hist = self.get_daily_cumulative_relative_PnL(date_from, date_to, base)
         cum_pnl_hist = {'labels': cum_pnl_hist['day'].apply(lambda x: x.strftime('%d %b')).tolist(),
@@ -159,10 +159,10 @@ class Trader(object):
         profile['balance_percentage'] = balance_percentage
 
         # get order history
-        trades_hist = self.get_order_history(date_from, date_to)
-        trades_hist['time'] = trades_hist['created_at'].apply(lambda x: x.strftime('%d %b %Y %H:%M:%S'))
-        trades_hist = trades_hist.to_dict('records')
-        profile['trades_hist'] = trades_hist
+        # trades_hist = self.get_order_history(date_from, date_to)
+        # trades_hist['time'] = trades_hist['created_at'].apply(lambda x: x.strftime('%d %b %Y %H:%M:%S'))
+        # trades_hist = trades_hist.to_dict('records')
+        # profile['trades_hist'] = trades_hist
 
         profile['overview'] = overview
         # get private information
@@ -182,9 +182,9 @@ class Trader(object):
             profile['daily_pnl_hist'] = daily_pnl_hist
 
             # get transaction history
-            trans_hist = self.get_transaction_history(date_from, date_to)
-            trans_hist['time'] = trans_hist['created_at'].apply(lambda x: x.strftime('%d %b %Y %H:%M:%S'))
-            trans_hist = trans_hist.to_dict('records')
-            profile['trans_hist'] = trans_hist
+            # trans_hist = self.get_transaction_history(date_from, date_to)
+            # trans_hist['time'] = trans_hist['created_at'].apply(lambda x: x.strftime('%d %b %Y %H:%M:%S'))
+            # trans_hist = trans_hist.to_dict('records')
+            # profile['trans_hist'] = trans_hist
         return profile
 

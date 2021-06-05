@@ -27,7 +27,7 @@ if __name__ == '__main__':
         tas = TradingAccount.objects.filter(user=user)
         for ta in tas:
             take_snapshot(ta, markets[ta.platform], now)
-            async_task(update_order_history, (ta, now, markets[ta.platform]), ack_failure=True)
-            async_task(update_transaction_history, ta, now, markets[ta.platform], timeout=120, ack_failure=True)
+            # async_task(update_order_history, (ta, now, markets[ta.platform]), ack_failure=True)
+            # async_task(update_transaction_history, ta, now, markets[ta.platform], timeout=120, ack_failure=True)
         # Collect user level data
         update_profile(user, markets, today)
