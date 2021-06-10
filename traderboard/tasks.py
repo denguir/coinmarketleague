@@ -51,7 +51,8 @@ def update_profile(user, markets, today):
     trader = Trader(user, markets)
     # Get pnL data wrt to 24h record 
     try:
-        pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=2), today, 'USDT')
+        pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=1), today, 'USDT')
+        print(pnl_hist_usdt)
         daily_pnl = float(pnl_hist_usdt[pnl_hist_usdt['day'] == today]['cum_pnl_perc'])
     except Exception as e:
         print(e)
@@ -59,7 +60,8 @@ def update_profile(user, markets, today):
     
     # Get pnL data wrt to 7d record
     try:
-        pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=8), today, 'USDT')
+        pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=7), today, 'USDT')
+        print(pnl_hist_usdt)
         weekly_pnl = float(pnl_hist_usdt[pnl_hist_usdt['day'] == today]['cum_pnl_perc'])
     except Exception as e:
         print(e)
@@ -67,7 +69,8 @@ def update_profile(user, markets, today):
 
     # Get pnL data wrt to 1m record
     try:
-        pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=32), today, 'USDT')
+        pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=30), today, 'USDT')
+        print(pnl_hist_usdt)
         monthly_pnl = float(pnl_hist_usdt[pnl_hist_usdt['day'] == today]['cum_pnl_perc'])
     except Exception as e:
         print(e)
@@ -109,14 +112,16 @@ def update_transaction_history(ta, now, market):
 # load functions are supposed to be run once at account registration
 
 
-def load_account_history(ta):
+def load_account_history(user, ta):
     '''Load past balance data at trading account registration'''
     market = Market.trading_from(ta.platform)
     now = datetime.now(timezone.utc)
-    date_from = now - timedelta(days=29)
+    today = datetime.combine(now, datetime.min.time(), timezone.utc)
+    date_from = now - timedelta(days=30)
     tc = TradingClient.trading_from(ta)
     tc.load_account_history(date_from, now, market)
     take_snapshot(ta, market, now)
+    update_profile(user, None, today)
     print(f'Historic of account {ta.id} is loading...')
 
 

@@ -7,8 +7,7 @@ from django.contrib.auth.models import User
 from traderboard.models import TradingAccount
 from Market import Market
 from datetime import datetime, timezone
-from traderboard.tasks import take_snapshot, update_profile, update_order_history, update_transaction_history
-from django_q.tasks import async_task
+from traderboard.tasks import take_snapshot, update_profile
 
 
 __PLATFORMS__ = ['Binance']
@@ -26,7 +25,11 @@ if __name__ == '__main__':
         # Collect account level data
         tas = TradingAccount.objects.filter(user=user)
         for ta in tas:
-            take_snapshot(ta, markets[ta.platform], now)
+            try:
+                take_snapshot(ta, markets[ta.platform], now)
+            except Exception as e:
+                print(f"Error processing {ta.id}.")
+                print(e)
             # async_task(update_order_history, (ta, now, markets[ta.platform]), ack_failure=True)
             # async_task(update_transaction_history, ta, now, markets[ta.platform], timeout=120, ack_failure=True)
         # Collect user level data

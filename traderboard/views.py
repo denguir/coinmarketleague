@@ -172,12 +172,12 @@ def add_trading_account(request):
             messages.success(request, 'Trading account added successfully!')
             # load past data when adding a trading account
             try:
-                load_account_history(ta)
-                messages.warning(request, 
-                        'Account synchronization success.')
+                load_account_history(user, ta)
+                messages.success(request, 'Account synchronization success!')
+                
             except Exception as e:
                 print(e)
-                messages.warning(request, 'Failed to fetch past data.')
+                messages.error(request, 'Account synchronization failed.')
             return redirect('trading_accounts')
         else:
             messages.error(request, 'Invalid API information. \n\

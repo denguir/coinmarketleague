@@ -181,7 +181,7 @@ class BinanceMarket(Market):
         prices['close_time'] = time_range['close_time']
         if asset == base:
             prices['open_price'] = 1.0
-            prices['close_prices'] = 1.0
+            prices['close_price'] = 1.0
         else:
             symbol = asset + base
             try:
