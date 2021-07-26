@@ -10,6 +10,7 @@ from django.contrib.auth import update_session_auth_hash
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.template.context_processors import csrf
+from django.db.models import F
 from verify_email.email_handler import send_verification_email
 from datetime import datetime, timedelta, timezone
 from .tasks import load_account_history
@@ -18,7 +19,7 @@ from .tasks import load_account_history
 def home_out(request):
     '''home page for visitors'''
     order_by = request.GET.get('order_by', 'daily_pnl')
-    traders = enumerate(Profile.objects.order_by(order_by).reverse(), start=1)
+    traders = enumerate(Profile.objects.order_by(F(order_by).desc(nulls_last=True)), start=1)
     return render(request, 'index.html', {'traders': traders})
 
 
@@ -27,7 +28,7 @@ def home(request):
     '''home page for logged in users'''
     user = request.user
     order_by = request.GET.get('order_by', 'daily_pnl')
-    traders = enumerate(Profile.objects.order_by(order_by).reverse(), start=1)
+    traders = enumerate(Profile.objects.order_by(F(order_by).desc(nulls_last=True)), start=1)
     return render(request, 'index.html', {'traders': traders, 'user': user})
 
 
