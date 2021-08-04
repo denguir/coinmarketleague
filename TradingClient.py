@@ -3,8 +3,8 @@ import time
 import pandas as pd
 import numpy as np
 from datetime import date, datetime, timedelta, timezone
-from abc import ABC, abstractmethod
-from binance.client import Client as BinanceClient
+from tasks import update_transaction_history, update_order_history
+from binance import AsyncClient, BinanceSocketManager
 from Market import BinanceMarket, Market
 from django.db.models.functions import TruncDay
 from django.db.models import Max, Sum
@@ -14,47 +14,37 @@ from traderboard.models import SnapshotAccount, SnapshotAccountDetails, AccountT
 __PLATFORMS__ = ['Binance']
 
 
-class TradingClient(ABC):
-    '''Abstract Trading client class to inherit from
-     to integrate a trading account in a new exchange platform'''
+class BinanceTradingClient:
+    '''Trading client for Binance built from a trading account instance.'''
 
-    @staticmethod
-    def trading_from(ta):
-        assert(ta.platform in __PLATFORMS__)
-        if ta.platform == 'Binance':
-            return BinanceTradingClient(ta)
-
-    @abstractmethod
     def __init__(self, ta):
-        # ta: trading account record 
         self.ta = ta
+        self.api_key = self.ta.api_key
+        self.api_secret = self.ta.api_secret
 
-    @abstractmethod
-    def get_balances(self) -> pd.DataFrame:
-        pass
+    @classmethod
+    async def connect(cls, ta):
+        self = cls(ta)
+        self.client = await AsyncClient.create(api_key=self.api_key, api_secret=self.api_secret)
+        self.socket_manager = BinanceSocketManager(self.client)
+        return self
 
-    @abstractmethod
-    def get_deposit_history(self, date_from: datetime, date_to: datetime, market: Market) -> pd.DataFrame:
-        pass
+    async def close_connection(self):
+        # put in celery a reconnection task
+        await self.client.close_connection()
 
-    @abstractmethod
-    def get_withdrawal_history(self, date_from: datetime, date_to: datetime, market: Market) -> pd.DataFrame:
-        pass
+    async def get_events(self):
+        us = self.socket_manager.user_socket()
+        async with us as uscm:
+            while True:
+                event = await uscm.recv()
+                # put task in celery queue
+                if event['e'] == "balanceUpdate":
+                    update_transaction_history.delay(event)
+                elif event['e'] == "executionReport" and event["X"] == "TRADE":
+                    update_order_history.delay(event)
+        await self.close_connection()
 
-    @abstractmethod
-    def get_value_table(self, balances: pd.DataFrame, market: Market, base: str) -> pd.DataFrame:
-        pass
-
-
-class BinanceTradingClient(TradingClient):
-    '''Trading client for Binance built from a trading account 
-        registered in the database'''
-    # TODO:
-    # include sub accounts if possible
-    def __init__(self, ta):
-        super().__init__(ta)
-        self.client = BinanceClient(ta.api_key, ta.api_secret)
-        
     def get_balances(self):
         # only for spot account
         info = self.client.get_account()
@@ -412,3 +402,18 @@ class BinanceTradingClient(TradingClient):
             for _, item in stat.iterrows():
                 detail = SnapshotAccountDetails(snapshot=snap, asset=item['asset'], amount=item['amount'])
                 detail.save()
+
+
+class TradingClient:
+    def __init__(self):
+        self._clients = {
+            'Binance': BinanceTradingClient
+        }
+    
+    @classmethod
+    def connect(cls, ta):
+        self = cls()
+        client = self._clients[ta.platform]
+        if not client:
+            raise ValueError(f'Platform not supported - {ta.platform}')
+        return client.connect(ta)
