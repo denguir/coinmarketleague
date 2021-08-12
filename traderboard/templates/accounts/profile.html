@@ -46,7 +46,7 @@
                       <div class="col mr-2">
                           <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
                               PnL (Daily)</div>
-                            {% if trader.profile.daily_pnl %}
+                            {% if trader.profile.daily_pnl is not None %}
                                 <div class="h5 mb-0 font-weight-bold text-gray-800">{{ trader.profile.daily_pnl }} %</div>
                             {% else %}
                                 <div class="h5 mb-0 font-weight-bold text-gray-800">Not available</div>
@@ -65,7 +65,7 @@
                       <div class="col mr-2">
                           <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
                               PnL (Weekly)</div>
-                            {% if trader.profile.weekly_pnl %}
+                            {% if trader.profile.weekly_pnl is not None %}
                               <div class="h5 mb-0 font-weight-bold text-gray-800">{{ trader.profile.weekly_pnl }} %</div>
                             {% else %}
                               <div class="h5 mb-0 font-weight-bold text-gray-800">Not available</div>
@@ -86,7 +86,7 @@
                           </div>
                           <div class="row no-gutters align-items-center">
                               <div class="col-auto">
-                                {% if trader.profile.monthly_pnl %}
+                                {% if trader.profile.monthly_pnl is not None %}
                                 <div class="h5 mb-0 font-weight-bold text-gray-800">{{ trader.profile.monthly_pnl }} %</div>
                                 {% else %}
                                 <div class="h5 mb-0 font-weight-bold text-gray-800">Not available</div>
