@@ -17,7 +17,7 @@ class Profile(models.Model):
     monthly_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
 
     # number of trading accounts linked to user 
-    nacc = models.IntegerField(default=0, min_value=0) 
+    nacc = models.IntegerField(default=0)
 
 
 class TradingAccount(models.Model):

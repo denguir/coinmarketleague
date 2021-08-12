@@ -47,9 +47,23 @@
                       <tr>
                         <th class="isolated" scope="row">{{ ranking }}</th>
                         <td><a class="selectable" href="{% url 'profile_with_pk' pk=trader.user.pk %}">{{ trader.user.username }}</a></td>
-                        <td>{{ trader.daily_pnl }} %</td>
-                        <td>{{ trader.weekly_pnl }} %</td>
+                        {% if trader.daily_pnl %} 
+                            <td>{{ trader.daily_pnl }} %</td>
+                        {% else %}
+                            <td>-</td>
+                        {% endif %}
+
+                        {% if trader.weekly_pnl %} 
+                            <td>{{ trader.weekly_pnl }} %</td>
+                        {% else %}
+                            <td>-</td>
+                        {% endif %}
+
+                        {% if trader.monthly_pnl %} 
                         <td>{{ trader.monthly_pnl }} %</td>
+                        {% else %}
+                            <td>-</td>
+                        {% endif %}
                       </tr>
                   {% endfor %}
                   </tbody>

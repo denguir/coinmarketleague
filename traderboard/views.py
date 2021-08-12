@@ -51,9 +51,10 @@ def register(request):
 @login_required
 def show_profile(request):
     user = User.objects.get(pk=request.user.id)
+    req_profile = Profile.objects.get(user=user)
     trader = Trader(user)
     if request.method == 'GET':
-        if user.nacc > 0:
+        if req_profile.nacc > 0:
             form = ProfileFilterForm(request.GET)
             if form.is_valid():
                 profile = trader.get_profile(form.cleaned_data['date_from'], form.cleaned_data['date_to'], 'USDT', False)
@@ -61,20 +62,21 @@ def show_profile(request):
                 # by default, show last week stats
                 profile = trader.get_profile(datetime.now(timezone.utc) - timedelta(days=7), 
                                                     datetime.now(timezone.utc), 'USDT', False)
-                profile['user'] = request.user
         else:
-            profile = {'overview': False}
-            messages.warning(request, 'You have no trading account linked to your profile.\n\
-                                    Update your status on Settings > Link trading account to have your own dashboard !')
-    return render(request, 'accounts/profile.html', profile)
+            profile = {'overview': False, 'trader': user}
+            messages.info(request, 'You have no trading account linked to your profile.\n\
+                                    Upgrade your profile on Settings > Link trading account to have your own dashboard !')
+        profile['user'] = request.user
+        return render(request, 'accounts/profile.html', profile)
 
 
 @login_required
 def show_overview_profile(request, pk=None):
     user = get_object_or_404(User, pk=pk)
     trader = Trader(user)
+    req_profile = Profile.objects.get(user=request.user)
     if request.method == 'GET':
-        if request.user.nacc > 0:
+        if req_profile.nacc > 0:
             form = ProfileFilterForm(request.GET)
             if form.is_valid():
                 profile = trader.get_profile(form.cleaned_data['date_from'], form.cleaned_data['date_to'], 
@@ -83,12 +85,13 @@ def show_overview_profile(request, pk=None):
                 # by default, show last week stats
                 profile = trader.get_profile(datetime.now(timezone.utc) - timedelta(days=7),
                                                     datetime.now(timezone.utc), 'USDT', not user.profile.public)
-                profile['user'] = request.user
         else:
-            profile = {'overview': True}
-            messages.warning(request, 'You have no trading account linked to your profile.\n\
-                                    Update your status on Settings > Link trading account to be able to inspect others dashboard !')
-    return render(request, 'accounts/profile.html', profile)
+            profile = {'overview': True, 'trader': user}
+            messages.info(request, 'You have no trading account linked to your profile.\n\
+                                    Upgrade your profile on Settings > Link trading account to be able to inspect others dashboard !')
+        
+        profile['user'] = request.user
+        return render(request, 'accounts/profile.html', profile)
 
 
 @login_required
@@ -124,21 +127,45 @@ def edit_profile(request):
     args['user'] = user
     if request.method == 'POST':
         u_form = EditProfileForm(request.POST, instance=user)
-        p_form = EditSettingsForm(request.POST, request.FILES, instance=user.profile)
-        if u_form.is_valid() and p_form.is_valid():
+        if u_form.is_valid():
             u_form.save()
-            p_form.save()
             messages.success(request, 'Profile succesfully updated!')
         else:
+            print(u_form.errors)
             messages.error(request, 'Invalid information provided.')
 
         return redirect('edit_profile')
     else:
         u_form = EditProfileForm(instance=user)
-        p_form = EditSettingsForm(instance=user.profile)
         args['u_form'] = u_form
-        args['p_form'] = p_form
         return render(request, 'accounts/edit_profile.html', args)
+
+
+# @login_required
+# def edit_profile(request):
+#     user = User.objects.get(pk=request.user.id)
+#     args = {}
+#     args.update(csrf(request))
+#     args['user'] = user
+#     if request.method == 'POST':
+#         u_form = EditProfileForm(request.POST, instance=user)
+#         p_form = EditSettingsForm(request.POST, request.FILES, instance=user.profile)
+#         if u_form.is_valid() and p_form.is_valid():
+#             u_form.save()
+#             p_form.save()
+#             messages.success(request, 'Profile succesfully updated!')
+#         else:
+#             print(u_form.errors)
+#             print(p_form.errors)
+#             messages.error(request, 'Invalid information provided.')
+
+#         return redirect('edit_profile')
+#     else:
+#         u_form = EditProfileForm(instance=user)
+#         p_form = EditSettingsForm(instance=user.profile)
+#         args['u_form'] = u_form
+#         args['p_form'] = p_form
+#         return render(request, 'accounts/edit_profile.html', args)
 
 
 @login_required
@@ -173,6 +200,7 @@ def show_trading_accounts(request):
 @login_required
 def add_trading_account(request):
     user = User.objects.get(pk=request.user.id)
+    profile = Profile.objects.filter(user=user)
     args = {}
     args.update(csrf(request))
     args['user'] = user
@@ -184,7 +212,7 @@ def add_trading_account(request):
             # load past data when adding a trading account
             try:
                 load_account_history(user, ta)
-                user.update(nacc=F('nacc')+1)
+                profile.update(nacc=F('nacc')+1)
                 messages.success(request, 'Account synchronization success!')
             except Exception as e:
                 print(e)
@@ -203,9 +231,10 @@ def add_trading_account(request):
 @login_required
 def remove_trading_account(request, pk=None):
     ta = get_object_or_404(TradingAccount, user=request.user, pk=pk)
+    profile = Profile.objects.filter(user=request.user)
     if ta:
         ta.delete()
-        user.update(nacc=F('nacc')-1)
+        profile.update(nacc=F('nacc')-1)
         messages.success(request, 'Trading account succesfully removed.')
     return redirect('trading_accounts')
 
