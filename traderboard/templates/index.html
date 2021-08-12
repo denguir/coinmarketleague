@@ -44,27 +44,27 @@
                   </tfoot>
                   <tbody>
                     {% for ranking, trader in traders %}
-                      <tr>
-                        <th class="isolated" scope="row">{{ ranking }}</th>
-                        <td><a class="selectable" href="{% url 'profile_with_pk' pk=trader.user.pk %}">{{ trader.user.username }}</a></td>
-                        {% if trader.daily_pnl %} 
-                            <td>{{ trader.daily_pnl }} %</td>
-                        {% else %}
-                            <td>-</td>
-                        {% endif %}
+                        <tr>
+                            <th class="isolated" scope="row">{{ ranking }}</th>
+                            <td><a class="selectable" href="{% url 'profile_with_pk' pk=trader.user.pk %}">{{ trader.user.username }}</a></td>
+                            {% if trader.daily_pnl is not None %} 
+                                <td>{{ trader.daily_pnl }} %</td>
+                            {% else %}
+                                <td>-</td>
+                            {% endif %}
 
-                        {% if trader.weekly_pnl %} 
-                            <td>{{ trader.weekly_pnl }} %</td>
-                        {% else %}
-                            <td>-</td>
-                        {% endif %}
+                            {% if trader.weekly_pnl is not None %} 
+                                <td>{{ trader.weekly_pnl }} %</td>
+                            {% else %}
+                                <td>-</td>
+                            {% endif %}
 
-                        {% if trader.monthly_pnl %} 
-                        <td>{{ trader.monthly_pnl }} %</td>
-                        {% else %}
-                            <td>-</td>
-                        {% endif %}
-                      </tr>
+                            {% if trader.monthly_pnl is not None %} 
+                            <td>{{ trader.monthly_pnl }} %</td>
+                            {% else %}
+                                <td>-</td>
+                            {% endif %}
+                        </tr>
                   {% endfor %}
                   </tbody>
               </table>
