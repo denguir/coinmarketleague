@@ -53,14 +53,19 @@ def show_profile(request):
     user = User.objects.get(pk=request.user.id)
     trader = Trader(user)
     if request.method == 'GET':
-        form = ProfileFilterForm(request.GET)
-        if form.is_valid():
-            profile = trader.get_profile(form.cleaned_data['date_from'], form.cleaned_data['date_to'], 'USDT', False)
+        if user.nacc > 0:
+            form = ProfileFilterForm(request.GET)
+            if form.is_valid():
+                profile = trader.get_profile(form.cleaned_data['date_from'], form.cleaned_data['date_to'], 'USDT', False)
+            else:
+                # by default, show last week stats
+                profile = trader.get_profile(datetime.now(timezone.utc) - timedelta(days=7), 
+                                                    datetime.now(timezone.utc), 'USDT', False)
+                profile['user'] = request.user
         else:
-            # by default, show last week stats
-            profile = trader.get_profile(datetime.now(timezone.utc) - timedelta(days=7), 
-                                                datetime.now(timezone.utc), 'USDT', False)
-            profile['user'] = request.user
+            profile = {'overview': False}
+            messages.warning(request, 'You have no trading account linked to your profile.\n\
+                                    Update your status on Settings > Link trading account to have your own dashboard !')
     return render(request, 'accounts/profile.html', profile)
 
 
@@ -69,15 +74,20 @@ def show_overview_profile(request, pk=None):
     user = get_object_or_404(User, pk=pk)
     trader = Trader(user)
     if request.method == 'GET':
-        form = ProfileFilterForm(request.GET)
-        if form.is_valid():
-            profile = trader.get_profile(form.cleaned_data['date_from'], form.cleaned_data['date_to'], 
-                                                'USDT', not user.profile.public)
+        if request.user.nacc > 0:
+            form = ProfileFilterForm(request.GET)
+            if form.is_valid():
+                profile = trader.get_profile(form.cleaned_data['date_from'], form.cleaned_data['date_to'], 
+                                                    'USDT', not user.profile.public)
+            else:
+                # by default, show last week stats
+                profile = trader.get_profile(datetime.now(timezone.utc) - timedelta(days=7),
+                                                    datetime.now(timezone.utc), 'USDT', not user.profile.public)
+                profile['user'] = request.user
         else:
-            # by default, show last week stats
-            profile = trader.get_profile(datetime.now(timezone.utc) - timedelta(days=7),
-                                                 datetime.now(timezone.utc), 'USDT', not user.profile.public)
-            profile['user'] = request.user
+            profile = {'overview': True}
+            messages.warning(request, 'You have no trading account linked to your profile.\n\
+                                    Update your status on Settings > Link trading account to be able to inspect others dashboard !')
     return render(request, 'accounts/profile.html', profile)
 
 
@@ -174,8 +184,8 @@ def add_trading_account(request):
             # load past data when adding a trading account
             try:
                 load_account_history(user, ta)
+                user.update(nacc=F('nacc')+1)
                 messages.success(request, 'Account synchronization success!')
-                
             except Exception as e:
                 print(e)
                 messages.error(request, 'Account synchronization failed.')
@@ -195,6 +205,7 @@ def remove_trading_account(request, pk=None):
     ta = get_object_or_404(TradingAccount, user=request.user, pk=pk)
     if ta:
         ta.delete()
+        user.update(nacc=F('nacc')-1)
         messages.success(request, 'Trading account succesfully removed.')
     return redirect('trading_accounts')
 

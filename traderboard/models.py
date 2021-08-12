@@ -10,10 +10,14 @@ class Profile(models.Model):
     # main settings
     public = models.BooleanField(default=False)
     picture = models.ImageField(upload_to='profile_picture', blank=True)
+
     # store main stats about the user
     daily_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
     weekly_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
     monthly_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
+
+    # number of trading accounts linked to user 
+    nacc = models.IntegerField(default=0, min_value=0) 
 
 
 class TradingAccount(models.Model):
