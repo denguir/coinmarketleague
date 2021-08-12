@@ -39,12 +39,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
     'traderboard',
     'widget_tweaks',
     'encrypted_fields',
     'verify_email',
-    'django_q',
+
 ]
 
 FIELD_ENCRYPTION_KEYS = os.environ.get("FIELD_ENCRYPTION_KEYS").split(" ")
@@ -174,17 +173,10 @@ MESSAGE_TAGS = {
 # DB settings
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
-# # Django-Q settings
-Q_CLUSTER = {
-    'name': 'coinmarketleague',
-    'timeout': 1200,
-    'retry': 3600,
-    'compress': True,
-    'cpu_affinity': 1,
-    'label': 'Django Q',
-    'redis': os.environ.get('REDIS_URL'),
-}
-
+# Celery settings
+CELERY_BROKER_URL = os.environ.get('REDIS_URL')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
 
 # Settings for heroku
 django_heroku.settings(locals())

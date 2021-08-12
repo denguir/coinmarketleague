@@ -1,4 +1,5 @@
 import time
+from celery import shared_task
 from Trader import Trader
 from TradingClient import TradingClient
 from Market import Market
@@ -10,6 +11,9 @@ from django.contrib.auth.models import User
 
 __PLATFORMS__ = ['Binance']
 
+@shared_task
+def add(x, y):
+    return x + y
 
 def take_snapshot(ta, market, now):
     '''Take snapshot of a TradingAccount'''

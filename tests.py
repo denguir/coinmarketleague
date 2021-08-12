@@ -1,5 +1,6 @@
 import os
 import asyncio
+import aioconsole
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "coinmarketleague.settings")
 import django
 django.setup()
@@ -19,7 +20,13 @@ async def main(loop):
     user = await sync_to_async(User.objects.get, thread_sensitive=True)(username='vador')
     ta = await sync_to_async(TradingAccount.objects.get, thread_sensitive=True)(user=user)
     tc = await TradingClient.connect(ta)
-    await tc.get_trades("BNBBTC")
+    while True:
+        cmd = await aioconsole.ainput("New request:")
+        if cmd.startswith('get_trades'):
+            symbol = cmd.split()[1]
+            loop.create_task(tc.get_trades(symbol))
+        elif cmd.startswith('get_balances'):
+            loop.create_task(tc.get_balances())
     
 
 if __name__ == "__main__":
