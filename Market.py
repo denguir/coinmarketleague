@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from abc import ABC, abstractmethod
-from binance.client import Client as BinanceClient
+from binance import AsyncClient, BinanceSocketManager
 from binance.exceptions import BinanceAPIException
 from multipledispatch import dispatch
 import pandas as pd
@@ -10,95 +10,30 @@ import numpy as np
 __PLATFORMS__ = ['Binance']
 
 
-class Market(ABC):
-    '''Abstract class for Market. Each platform market
-        must inherit from this class.
-    - base: base coin of comparison (BTC, USDT)'''
-
-    @staticmethod
-    def trading_from(platform):
-        assert(platform in __PLATFORMS__)
-        if platform == 'Binance':
-            return BinanceMarket(platform)
-
-    @abstractmethod
-    def __init__(self, platform):
-        self.platform = platform
-
-    @abstractmethod
-    def get_timestamp_offset(self) -> int:
-        pass
-
-    @abstractmethod
-    def to_timestamp(self, date: datetime) -> int:
-        pass
-
-    @abstractmethod
-    def to_datetime(self, timestamp: int) -> datetime:
-        pass
-
-    @abstractmethod
-    def to_date(self, timestamp: int) -> datetime:
-        pass
-
-    @abstractmethod
-    def get_price_table(self) -> dict:
-        pass
-
-
-class BinanceMarket(Market):
+class BinanceMarket:
     '''Market info for Binance'''
     
     def __init__(self, platform):
-        super().__init__(platform)
-        self.client = BinanceClient(None, None)
-        self.table = self.get_price_table()
+        super().__init__()
+        self.platform = platform
         self.bases = ['USDT', 'BTC', 'ETH', 'BNB']
-        self.timestamp_offset = self.get_timestamp_offset()
     
-    def get_timestamp_offset(self):
+    @classmethod
+    async def connect(cls, platform):
+        self = cls(platform)
+        self.client = await AsyncClient.create(None, None)
+        self.socket_manager = BinanceSocketManager(self.client)
+        self.timestamp_offset = await self.get_timestamp_offset()
+        self.table = await self.get_price_table()
+        return self
+
+    async def get_timestamp_offset(self):
         '''Return offset between API server time and UTC timezone'''
-        server_time = self.client.get_server_time()['serverTime'] # in ms
+        server_time = await self.client.get_server_time()
+        server_time = server_time['serverTime'] # in ms
         now = datetime.now(timezone.utc).timestamp()
         offset = server_time - int(now * 1000)
         return offset
-    
-    @dispatch(datetime)
-    def to_timestamp(self, dt):
-        # convert server time to UTC time, in ms
-        ts = int(dt.timestamp() * 1000 + self.timestamp_offset)
-        return ts
-
-    @dispatch(str)
-    def to_timestamp(self, dt):
-        dt = datetime.strptime(dt, '%Y-%m-%d %H:%M:%S')
-        return self.to_timestamp(dt)
-
-    @dispatch(int)
-    def to_datetime(self, timestamp):
-        # convert server timestamp to UTC datetime object
-        ts = timestamp / 1000 # convert is seconds
-        dt = datetime.fromtimestamp(ts, timezone.utc)
-        return dt
-
-    @dispatch(str)
-    def to_datetime(self, dt):
-        # convert str date to UTC datetime object
-        dt = datetime.strptime(dt, '%Y-%m-%d %H:%M:%S')
-        dt = dt.replace(tzinfo=timezone.utc)
-        return dt
-
-    @dispatch(str)
-    def to_date(self, dt):
-        # convert str date to UTC datetime object
-        dt = self.to_datetime(dt)
-        return datetime.combine(dt, datetime.min.time(), timezone.utc)
-
-    @dispatch(int)
-    def to_date(self, timestamp):
-        # convert server timestamp to UTC date-like object
-        date = self.to_datetime(timestamp)
-        return datetime.combine(date, datetime.min.time(), timezone.utc)         
 
     def round_date(self, date, interval, mode='open'):
         if interval == '1m':
@@ -118,20 +53,21 @@ class BinanceMarket(Market):
                 date = date.replace(microsecond=999999, second=59, minute=59, hour=23, tzinfo=timezone.utc)
         return date
 
-    def timestamp_range(self, date_from, date_to, interval, mode='open'):
+    def get_timestamp_range(self, date_from, date_to, interval, mode='open'):
         start = self.round_date(date_from, interval, mode)
         end = self.round_date(date_to, interval, mode)
         ts = pd.date_range(start=start, end=end, freq=interval)
         ts = ts.astype(np.int64) // 10 ** 6
         return ts
 
-    def get_price_table(self):
+    async def get_price_table(self):
         '''Return current market price table'''
-        prices = self.client.get_all_tickers()
+        prices = await self.client.get_all_tickers()
         price_table = pd.DataFrame(prices)
         price_table = price_table.astype({"symbol": str, "price": float})
 
-        symbol_info = self.client.get_exchange_info()['symbols']
+        symbol_info = await self.client.get_exchange_info()
+        symbol_info = symbol_info['symbols']
         symbol_cols = ['symbol', 'baseAsset', 'quoteAsset', 'baseAssetPrecision', 'quoteAssetPrecision']
         symbol_info = [{key: info[key] for key in symbol_cols} for info in symbol_info]
         symbol_table = pd.DataFrame(symbol_info)
@@ -139,7 +75,7 @@ class BinanceMarket(Market):
         price_table = price_table.merge(symbol_table, on='symbol')
         return price_table.drop_duplicates()
     
-    def get_price(self, asset, base):
+    async def get_price(self, asset, base):
         '''Return price of asset w.r.t base'''
         assert base in self.bases, f"{base} not supported as an exchange base."
         if asset == base:
@@ -160,22 +96,22 @@ class BinanceMarket(Market):
                         alt_symb = others.iloc[0]['symbol']
                         alt_price = others.iloc[0]['price']
                         alt_base = alt_symb.split(asset, 1)[1]
-                        price = alt_price * self.get_price(alt_base, base)
+                        price = alt_price * await self.get_price(alt_base, base)
                 else:
                     price = 1.0 / float(res['price'])
             else:
                 price = float(res['price'])
         return price
 
-    def get_price_history(self, asset, base, date_from, date_to, interval):
+    async def get_price_history(self, asset, base, date_from, date_to, interval):
         '''Return price history of asset w.r.t base between date_from and date_to'''
         assert base in self.bases, f"{base} not supported as an exchange base."
-        start = self.to_timestamp(date_from)
-        end = self.to_timestamp(date_to)
+        start = Market.to_timestamp(date_from)
+        end = Market.to_timestamp(date_to)
         prices = pd.DataFrame(columns=['open_time', 'open_price'])
         time_range = pd.DataFrame({
-                     'open_time': self.timestamp_range(date_from, date_to, interval, 'open'),
-                     'close_time': self.timestamp_range(date_from, date_to, interval, 'clsoe')
+                     'open_time': self.get_timestamp_range(date_from, date_to, interval, 'open'),
+                     'close_time': self.get_timestamp_range(date_from, date_to, interval, 'clsoe')
                     })
         prices['open_time'] = time_range['open_time']
         prices['close_time'] = time_range['close_time']
@@ -185,14 +121,14 @@ class BinanceMarket(Market):
         else:
             symbol = asset + base
             try:
-                res = self.client.get_klines(symbol=symbol, interval=interval, startTime=start, endTime=end, limit=1000)
+                res = await self.client.get_klines(symbol=symbol, interval=interval, startTime=start, endTime=end, limit=1000)
                 prices = pd.DataFrame(
                             [(int(row[0]), float(row[1]), int(row[6]), float(row[4])) for row in res], 
                             columns=['open_time', 'open_price', 'close_time', 'close_price'])
             except BinanceAPIException:
                 symbol = base + asset
                 try:
-                    res = self.client.get_klines(symbol=symbol, interval=interval, startTime=start, endTime=end, limit=1000)
+                    res = await self.client.get_klines(symbol=symbol, interval=interval, startTime=start, endTime=end, limit=1000)
                     prices = pd.DataFrame(
                                 [(int(row[0]), float(row[1]), int(row[6]), float(row[4])) for row in res], 
                                 columns=['open_time', 'open_price', 'close_time', 'close_price'])
@@ -209,11 +145,11 @@ class BinanceMarket(Market):
                         alt_symb = others.iloc[0]['symbol']
                         alt_base = alt_symb.split(asset, 1)[1]
                         try:
-                            res = self.client.get_klines(symbol=alt_symb, interval=interval, startTime=start, endTime=end, limit=1000)
+                            res = await self.client.get_klines(symbol=alt_symb, interval=interval, startTime=start, endTime=end, limit=1000)
                             prices = pd.DataFrame(
                                         [(int(row[0]), float(row[1]), int(row[6]), float(row[4])) for row in res], 
                                         columns=['open_time', 'open_price', 'close_time', 'close_price'])
-                            prices = prices.merge(self.get_price_history(alt_base, base, date_from, date_to, interval),
+                            prices = await prices.merge(self.get_price_history(alt_base, base, date_from, date_to, interval),
                                                 'inner', on=['open_time', 'close_time'])
                             prices['open_price'] = prices['open_price_x'] * prices['open_price_y']
                             prices['close_price'] = prices['close_price_x'] * prices['close_price_y']
@@ -234,8 +170,8 @@ class BinanceMarket(Market):
     def get_daily_prices(self, asset, base, date_from, date_to):
         '''Return daily prices of asset w.r.t base between date_from and date_to'''
         assert base in self.bases, f"{base} not supported as an exchange base."
-        start = self.to_timestamp(date_from)
-        end = self.to_timestamp(date_to)
+        start = Market.to_timestamp(date_from)
+        end = Market.to_timestamp(date_to)
         if asset == base:
             prices = pd.DataFrame(columns=['close_date', 'close_price'])
             prices['close_date'] = pd.date_range(start=date_from, end=date_to)
@@ -246,14 +182,14 @@ class BinanceMarket(Market):
                 res = self.client.get_klines(symbol=symbol, interval='1d', startTime=start, endTime=end)
                 prices = pd.DataFrame(
                         [(row[6], float(row[4])) for row in res], columns=['close_time', 'close_price'])
-                prices['close_date'] = prices['close_time'].apply(lambda ts: self.to_date(ts))
+                prices['close_date'] = prices['close_time'].apply(lambda ts: Market.to_date(ts))
             except BinanceAPIException:
                 symbol = base + asset
                 try:
                     res = self.client.get_klines(symbol=symbol, interval='1d', startTime=start, endTime=end)
                     prices = pd.DataFrame(
                         [(row[6], float(row[4])) for row in res], columns=['close_time', 'close_price'])
-                    prices['close_date'] = prices['close_time'].apply(lambda ts: self.to_date(ts))
+                    prices['close_date'] = prices['close_time'].apply(lambda ts: Market.to_date(ts))
                     prices['close_price'] = 1.0 / prices['close_price']
                 except BinanceAPIException:
                     other_symbols = [asset + other_base for other_base in self.bases]
@@ -261,7 +197,7 @@ class BinanceMarket(Market):
                     if others.empty:
                         print(f"Asset {asset} seems to have no exchange with one of the supported bases {self.bases}.")
                         prices = pd.DataFrame(columns=['close_date', 'close_price'])
-                        prices['close_date'] = pd.date_range(start=self.to_date(date_from), end=self.to_date(date_to))
+                        prices['close_date'] = pd.date_range(start=Market.to_date(date_from), end=Market.to_date(date_to))
                         prices['close_price'] = 0.0
                     else:
                         alt_symb = others.iloc[0]['symbol']
@@ -270,7 +206,7 @@ class BinanceMarket(Market):
                             res = self.client.get_klines(symbol=alt_symb, interval='1d', startTime=start, endTime=end)
                             prices = pd.DataFrame(
                                     [(row[6], float(row[4])) for row in res], columns=['close_time', 'close_price'])
-                            prices['close_date'] = prices['close_time'].apply(lambda ts: self.to_date(ts))
+                            prices['close_date'] = prices['close_time'].apply(lambda ts: Market.to_date(ts))
                             prices = prices.merge(self.get_daily_prices(alt_base, base, date_from, date_to),
                                                 'inner', on='close_date')
                             prices['close_price'] = prices['close_price_x'] * prices['close_price_y']
@@ -278,10 +214,66 @@ class BinanceMarket(Market):
                             print(f"Asset {asset} seems to have no exchange with base {alt_base}\
                                 between {date_from} and {date_to}.")
                             prices = pd.DataFrame(columns=['close_date', 'close_price'])
-                            prices['close_date'] = pd.date_range(start=self.to_date(date_from), end=self.to_date(date_to))
+                            prices['close_date'] = pd.date_range(start=Market.to_date(date_from), end=Market.to_date(date_to))
                             prices['close_price'] = 0.0
         return prices
 
 
+class Market:
+    def __init__(self):
+        self._markets = {
+            'Binance': BinanceMarket,
+        }
+    
+    @classmethod
+    def connect(cls, platform):
+        self = cls()
+        market = self._markets[platform]
+        if not market:
+            raise ValueError(f'Platform not supported - {platform}')
+        return market.connect(platform)
+
+    @staticmethod
+    @dispatch(datetime)
+    def to_timestamp(dt):
+        # convert server time to UTC time, in ms
+        ts = int(dt.timestamp() * 1000)
+        return ts
+
+    @staticmethod
+    @dispatch(str)
+    def to_timestamp(dt):
+        dt = datetime.strptime(dt, '%Y-%m-%d %H:%M:%S')
+        return Market.to_timestamp(dt)
+
+    @staticmethod
+    @dispatch(int)
+    def to_datetime(timestamp):
+        # convert server timestamp to UTC datetime object
+        ts = timestamp / 1000 # convert is seconds
+        dt = datetime.fromtimestamp(ts, timezone.utc)
+        return dt
+
+    @staticmethod
+    @dispatch(str)
+    def to_datetime(dt):
+        # convert str date to UTC datetime object
+        dt = datetime.strptime(dt, '%Y-%m-%d %H:%M:%S')
+        dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+
+    @staticmethod
+    @dispatch(str)
+    def to_date(dt):
+        # convert str date to UTC datetime object
+        dt = Market.to_datetime(dt)
+        return datetime.combine(dt, datetime.min.time(), timezone.utc)
+
+    @staticmethod
+    @dispatch(int)
+    def to_date(timestamp):
+        # convert server timestamp to UTC date-like object
+        date = Market.to_datetime(timestamp)
+        return datetime.combine(date, datetime.min.time(), timezone.utc)         
 
 

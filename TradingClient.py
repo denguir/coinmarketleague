@@ -41,7 +41,7 @@ class BinanceTradingClient:
                 event = await uscm.recv()
                 # put task in celery queue
                 if event['e'] == "balanceUpdate":
-                    print('celery task')
+                    update_transaction.delay(event)
                     #update_transaction_history.delay(event)
                 elif event['e'] == "executionReport" and event["X"] == "TRADE":
                     print('celery task')

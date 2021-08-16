@@ -15,6 +15,26 @@ __PLATFORMS__ = ['Binance']
 def add(x, y):
     return x + y
 
+
+@shared_task
+def record_transaction(event, ta):
+    amount = float(event['d'])
+    side = 'DEPOSIT' if amount >= 0 else 'WITHDRAWAL'
+    trans = AccountTransactions(account=ta,
+                                created_at=event['E'],
+                                updated_at=event['E'],
+                                asset=event['a'],
+                                amount=abs(amount),
+                                side=side
+                                )
+    trans.save()
+
+
+@shared_task
+def record_trade(event, ta):
+    pass
+
+
 def take_snapshot(ta, market, now):
     '''Take snapshot of a TradingAccount'''
     assert ta.platform == market.platform, f"Trading account and market must belong to the same trading platform:\
