@@ -6,7 +6,7 @@ import django
 django.setup()
 
 from Market import Market
-from TradingClient import TradingClient
+from TradingClient import TradingClient, AsyncTradingClient
 from datetime import datetime, timedelta, timezone
 from django.contrib.auth.models import User
 from Trader import Trader
@@ -30,10 +30,23 @@ from asgiref.sync import sync_to_async
 #     print(bal)
     
 
+def _get_last_snap(ta):
+    snap = SnapshotAccount.objects.filter(account=ta).latest('created_at')
+    return snap
+
 async def main(loop):
-    bm = await Market.connect('Binance')
-    price = await bm.get_price('CTSI', 'ETH')
-    print(price)
+    user = await sync_to_async(User.objects.get, thread_sensitive=True)(username='Vador')
+    ta = await sync_to_async(TradingAccount.objects.get, thread_sensitive=True)(user=user)
+    snap = await sync_to_async(_get_last_snap, thread_sensitive=True)(ta)
+    tc = await TradingClient.connect(ta)
+    market = await Market.connect('Binance')
+    
+    now = datetime.utcnow()
+    pnl = await tc.get_PnL(snap, now, market, 'USDT')
+    print(pnl)
+
+    await tc.close_connection()
+    await market.close_connection()
 
 
 

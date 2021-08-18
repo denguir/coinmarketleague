@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from abc import ABC, abstractmethod
-from binance import AsyncClient, BinanceSocketManager
+from binance import Client
 from binance.exceptions import BinanceAPIException
 from multipledispatch import dispatch
 import pandas as pd
@@ -19,17 +19,16 @@ class BinanceMarket:
         self.bases = ['USDT', 'BTC', 'ETH', 'BNB']
     
     @classmethod
-    async def connect(cls, platform):
+    def connect(cls, platform):
         self = cls(platform)
-        self.client = await AsyncClient.create(None, None)
-        self.socket_manager = BinanceSocketManager(self.client)
-        self.timestamp_offset = await self.get_timestamp_offset()
-        self.table = await self.get_price_table()
+        self.client = Client(None, None)
+        self.timestamp_offset = self.get_timestamp_offset()
+        self.table = self.get_price_table()
         return self
 
-    async def get_timestamp_offset(self):
+    def get_timestamp_offset(self):
         '''Return offset between API server time and UTC timezone'''
-        server_time = await self.client.get_server_time()
+        server_time = self.client.get_server_time()
         server_time = server_time['serverTime'] # in ms
         now = datetime.now(timezone.utc).timestamp()
         offset = server_time - int(now * 1000)
@@ -60,13 +59,13 @@ class BinanceMarket:
         ts = ts.astype(np.int64) // 10 ** 6
         return ts
 
-    async def get_price_table(self):
+    def get_price_table(self):
         '''Return current market price table'''
-        prices = await self.client.get_all_tickers()
+        prices = self.client.get_all_tickers()
         price_table = pd.DataFrame(prices)
         price_table = price_table.astype({"symbol": str, "price": float})
 
-        symbol_info = await self.client.get_exchange_info()
+        symbol_info = self.client.get_exchange_info()
         symbol_info = symbol_info['symbols']
         symbol_cols = ['symbol', 'baseAsset', 'quoteAsset', 'baseAssetPrecision', 'quoteAssetPrecision']
         symbol_info = [{key: info[key] for key in symbol_cols} for info in symbol_info]
@@ -75,7 +74,7 @@ class BinanceMarket:
         price_table = price_table.merge(symbol_table, on='symbol')
         return price_table.drop_duplicates()
     
-    async def get_price(self, asset, base):
+    def get_price(self, asset, base):
         '''Return price of asset w.r.t base'''
         assert base in self.bases, f"{base} not supported as an exchange base."
         if asset == base:
@@ -96,14 +95,14 @@ class BinanceMarket:
                         alt_symb = others.iloc[0]['symbol']
                         alt_price = others.iloc[0]['price']
                         alt_base = alt_symb.split(asset, 1)[1]
-                        price = alt_price * await self.get_price(alt_base, base)
+                        price = alt_price * self.get_price(alt_base, base)
                 else:
                     price = 1.0 / float(res['price'])
             else:
                 price = float(res['price'])
         return price
 
-    async def get_price_history(self, asset, base, date_from, date_to, interval):
+    def get_price_history(self, asset, base, date_from, date_to, interval):
         '''Return price history of asset w.r.t base between date_from and date_to'''
         assert base in self.bases, f"{base} not supported as an exchange base."
         start = Market.to_timestamp(date_from)
@@ -121,14 +120,14 @@ class BinanceMarket:
         else:
             symbol = asset + base
             try:
-                res = await self.client.get_klines(symbol=symbol, interval=interval, startTime=start, endTime=end, limit=1000)
+                res = self.client.get_klines(symbol=symbol, interval=interval, startTime=start, endTime=end, limit=1000)
                 prices = pd.DataFrame(
                             [(int(row[0]), float(row[1]), int(row[6]), float(row[4])) for row in res], 
                             columns=['open_time', 'open_price', 'close_time', 'close_price'])
             except BinanceAPIException:
                 symbol = base + asset
                 try:
-                    res = await self.client.get_klines(symbol=symbol, interval=interval, startTime=start, endTime=end, limit=1000)
+                    res = self.client.get_klines(symbol=symbol, interval=interval, startTime=start, endTime=end, limit=1000)
                     prices = pd.DataFrame(
                                 [(int(row[0]), float(row[1]), int(row[6]), float(row[4])) for row in res], 
                                 columns=['open_time', 'open_price', 'close_time', 'close_price'])
@@ -145,12 +144,12 @@ class BinanceMarket:
                         alt_symb = others.iloc[0]['symbol']
                         alt_base = alt_symb.split(asset, 1)[1]
                         try:
-                            res = await self.client.get_klines(symbol=alt_symb, interval=interval, startTime=start, endTime=end, limit=1000)
+                            res = self.client.get_klines(symbol=alt_symb, interval=interval, startTime=start, endTime=end, limit=1000)
                             prices = pd.DataFrame(
                                         [(int(row[0]), float(row[1]), int(row[6]), float(row[4])) for row in res], 
                                         columns=['open_time', 'open_price', 'close_time', 'close_price'])
-                            prices = await prices.merge(self.get_price_history(alt_base, base, date_from, date_to, interval),
-                                                'inner', on=['open_time', 'close_time'])
+                            price_hist = self.get_price_history(alt_base, base, date_from, date_to, interval)
+                            prices = prices.merge(price_hist, 'inner', on=['open_time', 'close_time'])
                             prices['open_price'] = prices['open_price_x'] * prices['open_price_y']
                             prices['close_price'] = prices['close_price_x'] * prices['close_price_y']
                         except BinanceAPIException:
@@ -207,8 +206,8 @@ class BinanceMarket:
                             prices = pd.DataFrame(
                                     [(row[6], float(row[4])) for row in res], columns=['close_time', 'close_price'])
                             prices['close_date'] = prices['close_time'].apply(lambda ts: Market.to_date(ts))
-                            prices = prices.merge(self.get_daily_prices(alt_base, base, date_from, date_to),
-                                                'inner', on='close_date')
+                            price_hist = self.get_daily_prices(alt_base, base, date_from, date_to)
+                            prices = prices.merge(price_hist, 'inner', on='close_date')
                             prices['close_price'] = prices['close_price_x'] * prices['close_price_y']
                         except BinanceAPIException:
                             print(f"Asset {asset} seems to have no exchange with base {alt_base}\
