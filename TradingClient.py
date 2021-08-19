@@ -121,15 +121,6 @@ class BinanceTradingClient(TradingClient):
             pnl_hist = pnl_hist[['day', 'pnl']].fillna({'pnl': 0.0})
         return pnl_hist
 
-    def get_daily_relative_PnL(self, date_from, date_to, base='USDT'):
-        '''Return a historical rel PnL time series aggreagated by dat.'''
-        snaps = SnapshotAccount.objects.filter(account=self.ta)\
-                                       .annotate(day=TruncDay('created_at'))\
-                                       .filter(day__range=[date_from, date_to])
-        pnl_hist = pd.DataFrame.from_records(snaps)
-        
-
-
     def get_deposit_history(self, date_from, date_to, market):
         start = market.to_timestamp(date_from)
         end = market.to_timestamp(date_to)
