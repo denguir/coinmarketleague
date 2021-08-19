@@ -8,8 +8,7 @@ from Market import BinanceMarket, Market
 from django.db.models.functions import TruncDay
 from django.db.models import Max, Sum
 from traderboard.models import SnapshotAccount, SnapshotAccountDetails, AccountTrades, AccountTransactions
-from asgiref.sync import sync_to_async
-
+import traderboard.celery_tasks as tasks
 
 __PLATFORMS__ = ['Binance']
 
@@ -381,30 +380,30 @@ class AsyncBinanceTradingClient:
         self.api_secret = self.ta.api_secret
 
     @classmethod
-    async def connect(cls, ta):
+    async def connect(cls, ta, loop):
         # register in db conn event
         self = cls(ta)
-        self.client = await AsyncClient.create(api_key=self.api_key, api_secret=self.api_secret)
+        self.client = await AsyncClient.create(api_key=self.api_key, api_secret=self.api_secret, loop=loop)
         self.socket_manager = BinanceSocketManager(self.client)
         return self
 
     async def close_connection(self):
         # register in db disconn event
         # put in celery a reconnection task
+        # also some logging is needed (celery)
         await self.client.close_connection()
 
     async def get_events(self):
+        # some logging needed here
         us = self.socket_manager.user_socket()
         async with us as uscm:
             while True:
                 event = await uscm.recv()
                 # put task in celery queue
                 if event['e'] == "balanceUpdate":
-                    update_transaction.delay(event)
-                    #update_transaction_history.delay(event)
+                    tasks.record_transaction(event, self.ta)
                 elif event['e'] == "executionReport" and event["X"] == "TRADE":
-                    print('celery task')
-                    #update_order_history.delay(event)
+                    tasks.record_trade(event, self.ta)
         await self.close_connection()
 
     async def get_trades(self, symbol):
@@ -412,7 +411,7 @@ class AsyncBinanceTradingClient:
         async with ts as tscm:
             while True:
                 res = await tscm.recv()
-                print(res)
+                print(f"{res['e']} by account {self.ta.id}")
         await self.close_connection()
 
 
@@ -438,9 +437,9 @@ class AsyncTradingClient:
         }
     
     @classmethod
-    def connect(cls, ta):
+    def connect(cls, ta, loop=None):
         self = cls()
         client = self._clients[ta.platform]
         if not client:
             raise ValueError(f'Platform not supported - {ta.platform}')
-        return client.connect(ta)
+        return client.connect(ta, loop)

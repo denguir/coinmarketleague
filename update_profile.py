@@ -20,7 +20,6 @@ if __name__ == '__main__':
     markets = {platform : Market.trading_from(platform) for platform in __PLATFORMS__}
     users = User.objects.all()
 
-
     for user in users:
         # Collect account level data
         tas = TradingAccount.objects.filter(user=user)
