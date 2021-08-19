@@ -46,32 +46,32 @@ def take_snapshot(ta, market, now):
     return snap
 
 
-def update_profile(user, markets, today):
+def update_profile(user, markets, now):
     '''Update account level user stats'''
     trader = Trader(user, markets)
+    # we allow 1 hour of error since it corresponds to the time resolution
+    margin = timedelta(hours=1)
+
     # Get pnL data wrt to 24h record 
     try:
-        pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=1), today, 'USDT')
-        print(pnl_hist_usdt)
-        daily_pnl = float(pnl_hist_usdt[pnl_hist_usdt['day'] == today]['cum_pnl_perc'])
+        date_from = now - timedelta(days=1)
+        daily_pnl = trader.get_relative_PnL(date_from, now, margin, base='USDT')
     except Exception as e:
         print(e)
         daily_pnl = None
     
     # Get pnL data wrt to 7d record
     try:
-        pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=7), today, 'USDT')
-        print(pnl_hist_usdt)
-        weekly_pnl = float(pnl_hist_usdt[pnl_hist_usdt['day'] == today]['cum_pnl_perc'])
+        date_from = now - timedelta(days=7)
+        weekly_pnl = trader.get_relative_PnL(date_from, now, margin, base='USDT')
     except Exception as e:
         print(e)
         weekly_pnl = None
 
     # Get pnL data wrt to 1m record
     try:
-        pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=30), today, 'USDT')
-        print(pnl_hist_usdt)
-        monthly_pnl = float(pnl_hist_usdt[pnl_hist_usdt['day'] == today]['cum_pnl_perc'])
+        date_from = now - timedelta(days=30)
+        monthly_pnl = trader.get_relative_PnL(date_from, now, margin, base='USDT')
     except Exception as e:
         print(e)
         monthly_pnl = None

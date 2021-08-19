@@ -1,6 +1,6 @@
 from Market import Market
 from TradingClient import TradingClient
-from traderboard.models import TradingAccount
+from traderboard.models import TradingAccount, SnapshotAccount
 import numpy as np
 import pandas as pd
 
@@ -59,6 +59,35 @@ class Trader(object):
 
     def get_deposits_value(self, date_from, date_to, base='USDT'):
         return sum(tc.get_deposits_value(date_from, date_to, market, base) for tc, market in self.tcs)
+
+    def get_relative_PnL(self, date_from, now, margin, base='USDT'):
+
+        def get_closest_to_dt(qs, dt):
+            greater = qs.filter(created_at__gte=dt).order_by("created_at").first()
+            less = qs.filter(created_at__lte=dt).order_by("-created_at").first()
+            
+            if greater and less:
+                return greater if abs(greater.created_at - dt) < abs(less.created_at - dt) else less
+            else:
+                return greater or less
+
+        pnl = 0.0
+        bal_from = 0.0
+        for tc, market in self.tcs:
+            snaps = SnapshotAccount.objects.filter(account=tc.ta)
+            snap = get_closest_to_dt(snaps, date_from)
+            if snap is not None:
+                if abs(snap.created_at - date_from) < margin:
+                    pnl += tc.get_PnL(snap, now, market, base)
+                    if base == 'BTC':
+                        bal_from += float(snap.balance_btc)
+                    else:
+                        bal_from += float(snap.balance_usdt)
+        if bal_from > 0:
+            pnl_rel = pnl / bal_from
+        else:
+            pnl_rel = None
+        return pnl_rel
 
     def get_daily_deposits_value(self, date_from, date_to, base='USDT'):
         deposits = {}

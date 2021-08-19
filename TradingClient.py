@@ -76,21 +76,6 @@ class BinanceTradingClient(TradingClient):
         pnl = balance_now - balance_from - deposits + withdrawals 
         return pnl
 
-
-    def get_PnL(self, snap, now, market, base='USDT'):
-        deposits = self.get_deposits_value(snap.created_at, now, market, base)
-        withdrawals = self.get_withdrawals_value(snap.created_at, now, market, base)
-        balance_now = self.get_balances_value(market, base)
-
-        if base == 'USDT':
-            balance_from = float(snap.balance_usdt)
-        elif base == 'BTC':
-            balance_from = float(snap.balance_btc)
-
-        pnl = balance_now - balance_from - deposits + withdrawals 
-        return pnl
-
-
     def get_daily_balances(self, date_from, date_to, base='USDT'):
         '''Returns a historical balance time series aggregated by day'''
         snaps = SnapshotAccount.objects.filter(account=self.ta)\
