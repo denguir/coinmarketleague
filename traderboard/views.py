@@ -19,7 +19,10 @@ from .tasks import load_account_history
 def home_out(request):
     '''home page for visitors'''
     order_by = request.GET.get('order_by', 'daily_pnl')
-    traders = enumerate(Profile.objects.order_by(F(order_by).desc(nulls_last=True)), start=1)
+    traders = enumerate(Profile.objects.order_by(F('daily_pnl').desc(nulls_last=True),
+                                                 F('weekly_pnl').desc(nulls_last=True),
+                                                 F('monthly_pnl').desc(nulls_last=True),   
+                                                 ), start=1)
     return render(request, 'index.html', {'traders': traders})
 
 
@@ -28,7 +31,10 @@ def home(request):
     '''home page for logged in users'''
     user = request.user
     order_by = request.GET.get('order_by', 'daily_pnl')
-    traders = enumerate(Profile.objects.order_by(F(order_by).desc(nulls_last=True)), start=1)
+    traders = enumerate(Profile.objects.order_by(F('daily_pnl').desc(nulls_last=True),
+                                                 F('weekly_pnl').desc(nulls_last=True),
+                                                 F('monthly_pnl').desc(nulls_last=True),   
+                                                 ), start=1)
     return render(request, 'index.html', {'traders': traders, 'user': user})
 
 
