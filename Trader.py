@@ -3,7 +3,7 @@ from TradingClient import TradingClient
 from traderboard.models import TradingAccount, SnapshotAccount
 import numpy as np
 import pandas as pd
-
+import time
 
 class Trader(object):
     '''Class for every user-level aggregated functions that could be designed.'''
@@ -60,25 +60,6 @@ class Trader(object):
     def get_deposits_value(self, date_from, date_to, base='USDT'):
         return sum(tc.get_deposits_value(date_from, date_to, market, base) for tc, market in self.tcs)
 
-    def get_relative_PnL(self, date_from, now, margin, base='USDT'):
-        pnl = 0.0
-        bal_from = 0.0
-        for tc, market in self.tcs:
-            snaps = SnapshotAccount.objects.filter(account=tc.ta)
-            snap = snaps.filter(created_at__gte=date_from).order_by('created_at').first()
-            if snap is not None:
-                if abs(snap.created_at - date_from) < margin:
-                    pnl += tc.get_PnL(snap, now, market, base)
-                    if base == 'BTC':
-                        bal_from += float(snap.balance_btc)
-                    else:
-                        bal_from += float(snap.balance_usdt)
-        if bal_from > 0:
-            pnl_rel = pnl / bal_from
-        else:
-            pnl_rel = None
-        return pnl_rel
-
     def get_daily_deposits_value(self, date_from, date_to, base='USDT'):
         deposits = {}
         for tc, market in self.tcs:
@@ -104,48 +85,45 @@ class Trader(object):
                     withdrawals[date] = value
         return withdrawals
 
-    def get_daily_balances(self, date_from, date_to, base='USDT'):
-        '''Returns a historical balance time series aggregated by day'''
-        balance_hist = pd.DataFrame(columns=['day', 'balance'])
+    def get_snapshot_history(self, date_from, date_to, base='USDT'):
+        snaps = pd.DataFrame(columns=['created_at', 'pnl', 'balance'])
         for tc, _ in self.tcs:
-            tc_bal = tc.get_daily_balances(date_from, date_to, base)
-            balance_hist = balance_hist.append(tc_bal)
-        balance_hist = balance_hist.groupby('day')['balance'].sum()\
-                                   .reset_index().sort_values('day')
-        return balance_hist
+            tc_snaps = tc.get_snapshot_history(date_from, date_to, base)
+            snaps = snaps.append(tc_snaps)
+        snaps = snaps.sort_values('created_at')
+        if len(snaps) > 0:
+            snaps.loc[0, 'pnl'] = 0 # first record becomes the reference
+        return snaps
 
-    def get_daily_PnL(self, date_from, date_to, base='USDT'):
-        '''Returns a historical PnL time series aggregated by day'''
-        pnl_hist = pd.DataFrame(columns=['day', 'pnl'])
-        for tc, _ in self.tcs:
-            tc_pnl = tc.get_daily_PnL(date_from, date_to, base)
-            pnl_hist = pnl_hist.append(tc_pnl)
-        pnl_hist = pnl_hist.groupby('day')['pnl'].sum()\
-                           .reset_index().sort_values('day')
-        return pnl_hist
+    def get_stats(self, date_from, date_to, base='USDT'):
+        snaps = self.get_snapshot_history(date_from, date_to, base)
+        snaps['balance_open'] = snaps['balance'].shift(1)
+        snaps['pnl_rel'] = snaps['pnl'] / snaps['balance_open']
+        snaps['cum_pnl'] = snaps['pnl'].cumsum()
+        snaps['cum_pnl_rel'] = np.around(100 * snaps['cum_pnl'] / snaps.iloc[0].balance, 2)
+        return snaps
 
-    def get_daily_relative_PnL(self, date_from, date_to, base='USDT'):
-        pnl_hist = self.get_daily_PnL(date_from, date_to, base)
-        balance_hist = self.get_daily_balances(date_from, date_to, base)
-        rel_pnl_hist = pnl_hist.merge(balance_hist, 'inner', on='day')
-        rel_pnl_hist['balance_open'] = rel_pnl_hist['balance'].shift(1)
-        rel_pnl_hist['pnl_rel'] = rel_pnl_hist['pnl'] / rel_pnl_hist['balance_open']
-        rel_pnl_hist = rel_pnl_hist.fillna({'pnl_rel': 0.0})
-        return rel_pnl_hist
+    def get_aggregated_stats(self, date_from, date_to, freq, base='USDT'):
+        '''Aggregate stats by freq, day: D, hour: H,
+           see: https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases
+        '''
+        snaps = self.get_snapshot_history(date_from, date_to, base)
+        snaps['balance_open'] = snaps['balance'].shift(1)
+        snaps = snaps.groupby(pd.Grouper(key='created_at',freq=freq))\
+                      .agg({'pnl': 'sum',
+                            'balance': 'last',
+                            'balance_open': 'first'
+                            })\
+                      .reset_index()\
+                      .sort_values('created_at')
+        # remove nan introduced by groupby
+        snaps = snaps[snaps['balance'].notna()]
+        snaps['balance_open'] = snaps['balance_open'].fillna(snaps['balance'])
 
-    def get_daily_cumulative_PnL(self, date_from, date_to, base='USDT'):
-        '''Compute cumulative PnL for day_to w.r.t date_from, using the formula:
-        cumPnL(t-n, t) = sum(dailyPnL(k) | k = t-n+1 -> t)'''
-        daily_pnl = self.get_daily_PnL(date_from, date_to, base)
-        daily_pnl['cum_pnl'] = daily_pnl['pnl'].cumsum()
-        return daily_pnl
-
-    def get_daily_cumulative_relative_PnL(self, date_from, date_to, base='USDT'):
-        '''Compute cumulative relative PnL for date_to w.r.t date_from, using the formula:
-        cumPnLPercent(t-n, t) = 100 * prod(1 + dailyPnLPercent(k) | k = t-n+1 -> t) - 100'''
-        daily_pnl = self.get_daily_relative_PnL(date_from, date_to, base)
-        daily_pnl['cum_pnl_perc'] = np.around(100 * np.cumprod(1.0 + daily_pnl['pnl_rel']) - 100, 2)
-        return daily_pnl
+        snaps['pnl_rel'] = snaps['pnl'] / snaps['balance_open']
+        snaps['cum_pnl'] = snaps['pnl'].cumsum()
+        snaps['cum_pnl_rel'] = np.around(100 * snaps['cum_pnl'] / snaps.iloc[0].balance_open, 2)
+        return snaps
     
     def get_order_history(self, date_from, date_to):
         order_hist = pd.DataFrame(columns=['created_at', 'symbol', 'amount', 'price', 'side'])
@@ -163,14 +141,17 @@ class Trader(object):
 
     def get_profile(self, date_from, date_to, base='USDT', overview=True):
         '''Process all metrics displayed in user's profile'''
-        # TODO:
-        # use dispatch to overload fct with df as param to speed up computation
         profile = {'trader': self.user, 'currency': base}
+
+        # collect daily stats and interpolate missing values
+        stats = self.get_aggregated_stats(date_from, date_to, freq='D', base=base)
+        print(stats)
         # get PnL aggregated history
-        cum_pnl_hist = self.get_daily_cumulative_relative_PnL(date_from, date_to, base)
-        cum_pnl_hist = {'labels': cum_pnl_hist['day'].apply(lambda x: x.strftime('%d %b')).tolist(),
-                        'data': cum_pnl_hist['cum_pnl_perc'].tolist()}
+        cum_pnl_hist = {'labels': stats['created_at'].apply(
+                                    lambda x: x.to_pydatetime().strftime('%d %b')).tolist(),
+                        'data': stats['cum_pnl_rel'].tolist()}
         profile['cum_pnl_hist'] = cum_pnl_hist
+
         # get balance percentage
         balance_percentage = self.get_relative_balances(base)
         balance_percentage = {'labels': [key for key in balance_percentage.keys()], 
@@ -187,17 +168,19 @@ class Trader(object):
         # get private information
         if not overview:
             # get balance aggregated history
-            balance_hist = self.get_daily_balances(date_from, date_to, base)
-            balance_hist = {'labels': balance_hist['day'].apply(lambda x: x.strftime('%d %b')).tolist(),
-                            'data': balance_hist['balance'].tolist()}
+            balance_hist = {'labels': stats['created_at'].apply(
+                                        lambda x: x.to_pydatetime().strftime('%d %b')).tolist(),
+                            'data': stats['balance'].tolist()}
             profile['balance_hist'] = balance_hist
+
             # get balance info now
             balance = round(self.get_balances_value(base), 2)
             profile['balance'] = balance
+
             # get daily pnl
-            daily_pnl_hist = self.get_daily_PnL(date_from, date_to, base)
-            daily_pnl_hist = {'labels': daily_pnl_hist['day'].apply(lambda x: x.strftime('%d %b')).tolist(),
-                              'data': daily_pnl_hist['pnl'].tolist()}
+            daily_pnl_hist = {'labels': stats['created_at'].apply(
+                                            lambda x: x.to_pydatetime().strftime('%d %b')).tolist(),
+                              'data': stats['pnl'].tolist()}
             profile['daily_pnl_hist'] = daily_pnl_hist
 
             # get transaction history

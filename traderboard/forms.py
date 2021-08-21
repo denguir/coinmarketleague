@@ -135,11 +135,11 @@ class ProfileFilterForm(forms.Form):
         date_to = self.cleaned_data.get('date_to', '')
         try:
             date_from = datetime.combine(date_from, datetime.min.time(), timezone.utc)
-            date_to = datetime.combine(date_to, datetime.min.time(), timezone.utc)
+            date_to = datetime.combine(date_to, datetime.max.time(), timezone.utc)
         except Exception as e:
             raise forms.ValidationError(u'Unvalid date format.')
 
-        if date_from >= date_to:
+        if date_from > date_to:
             raise forms.ValidationError(u'<Date to> must be after <Date from>.')
         
         self.cleaned_data['date_from'] = date_from

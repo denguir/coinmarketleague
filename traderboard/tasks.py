@@ -49,11 +49,16 @@ def take_snapshot(ta, market, now):
 def update_profile(user, markets, now):
     '''Update account level user stats'''
     trader = Trader(user, markets)
-
-    # Get pnL data wrt to 24h record 
+    # Get pnL data wrt to 24h record
+    
     try:
         date_from = now - timedelta(days=1)
-        daily_pnl = trader.get_relative_PnL(date_from, now, margin=timedelta(hours=1), base='USDT')
+        stats = trader.get_stats(date_from, now, base='USDT')
+        first_date = stats.iloc[0]['created_at'].to_pydatetime()
+        if abs(date_from - first_date) < timedelta(hours=2):
+            daily_pnl = float(stats.iloc[-1]['cum_pnl_rel'])
+        else:
+            daily_pnl = None
     except Exception as e:
         print(e)
         daily_pnl = None
@@ -61,7 +66,12 @@ def update_profile(user, markets, now):
     # Get pnL data wrt to 7d record
     try:
         date_from = now - timedelta(days=7)
-        weekly_pnl = trader.get_relative_PnL(date_from, now, margin=timedelta(days=1), base='USDT')
+        stats = trader.get_stats(date_from, now, base='USDT')
+        first_date = stats.iloc[0]['created_at'].to_pydatetime()
+        if abs(date_from - first_date) < timedelta(days=1):
+            weekly_pnl = float(stats.iloc[-1]['cum_pnl_rel'])
+        else:
+            weekly_pnl = None
     except Exception as e:
         print(e)
         weekly_pnl = None
@@ -69,7 +79,12 @@ def update_profile(user, markets, now):
     # Get pnL data wrt to 1m record
     try:
         date_from = now - timedelta(days=30)
-        monthly_pnl = trader.get_relative_PnL(date_from, now, margin=timedelta(days=1), base='USDT')
+        stats = trader.get_stats(date_from, now, base='USDT')
+        first_date = stats.iloc[0]['created_at'].to_pydatetime()
+        if abs(date_from - first_date) < timedelta(days=1):
+            monthly_pnl = float(stats.iloc[-1]['cum_pnl_rel'])
+        else:
+            monthly_pnl = None
     except Exception as e:
         print(e)
         monthly_pnl = None
@@ -114,12 +129,12 @@ def load_account_history(user, ta):
     '''Load past balance data at trading account registration'''
     market = Market.trading_from(ta.platform)
     now = datetime.now(timezone.utc)
-    today = datetime.combine(now, datetime.min.time(), timezone.utc)
+    now = datetime.combine(now, datetime.min.time(), timezone.utc)
     date_from = now - timedelta(days=30)
     tc = TradingClient.trading_from(ta)
     tc.load_account_history(date_from, now, market)
     take_snapshot(ta, market, now)
-    update_profile(user, None, today)
+    update_profile(user, None, now)
     print(f'Historic of account {ta.id} is loading...')
 
 

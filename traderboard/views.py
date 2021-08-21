@@ -57,11 +57,16 @@ def show_profile(request):
         if req_profile.nacc > 0:
             form = ProfileFilterForm(request.GET)
             if form.is_valid():
-                profile = trader.get_profile(form.cleaned_data['date_from'], form.cleaned_data['date_to'], 'USDT', False)
+                profile = trader.get_profile(form.cleaned_data['date_from'], 
+                                             form.cleaned_data['date_to'], 
+                                             'USDT', 
+                                             False)
             else:
                 # by default, show last week stats
-                profile = trader.get_profile(datetime.now(timezone.utc) - timedelta(days=7), 
-                                                    datetime.now(timezone.utc), 'USDT', False)
+                now = datetime.now(timezone.utc)
+                date_from = datetime.combine(now - timedelta(days=7), datetime.min.time(), timezone.utc)
+                date_to = datetime.combine(now, datetime.max.time(), timezone.utc)
+                profile = trader.get_profile(date_from, date_to, 'USDT', False)
         else:
             profile = {'overview': False, 'trader': user}
             messages.info(request, 'You have no trading account linked to your profile.\n\
@@ -79,12 +84,17 @@ def show_overview_profile(request, pk=None):
         if req_profile.nacc > 0:
             form = ProfileFilterForm(request.GET)
             if form.is_valid():
-                profile = trader.get_profile(form.cleaned_data['date_from'], form.cleaned_data['date_to'], 
-                                                    'USDT', not user.profile.public)
+                profile = trader.get_profile(form.cleaned_data['date_from'], 
+                                             form.cleaned_data['date_to'], 
+                                             'USDT', 
+                                             not user.profile.public)
             else:
                 # by default, show last week stats
-                profile = trader.get_profile(datetime.now(timezone.utc) - timedelta(days=7),
-                                                    datetime.now(timezone.utc), 'USDT', not user.profile.public)
+                # by default, show last week stats
+                now = datetime.now(timezone.utc)
+                date_from = datetime.combine(now - timedelta(days=7), datetime.min.time(), timezone.utc)
+                date_to = datetime.combine(now, datetime.max.time(), timezone.utc)
+                profile = trader.get_profile(date_from, date_to, 'USDT', not user.profile.public)
         else:
             profile = {'overview': True, 'trader': user}
             messages.info(request, 'You have no trading account linked to your profile.\n\
