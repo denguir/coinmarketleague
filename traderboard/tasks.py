@@ -53,7 +53,7 @@ def update_profile(user, markets, now):
     
     try:
         date_from = now - timedelta(days=1)
-        date_fom = date_from.replace(microsecond=0, second=0, minute=0)
+        date_from = date_from.replace(microsecond=0, second=0, minute=0)
 
         stats = trader.get_stats(date_from, now, base='USDT')
         first_date = stats.iloc[0]['created_at'].to_pydatetime()
@@ -68,7 +68,7 @@ def update_profile(user, markets, now):
     # Get pnL data wrt to 7d record
     try:
         date_from = now - timedelta(days=7)
-        date_fom = date_from.replace(microsecond=0, second=0, minute=0, hour=0)
+        date_from = date_from.replace(microsecond=0, second=0, minute=0, hour=0)
 
         stats = trader.get_stats(date_from, now, base='USDT')
         first_date = stats.iloc[0]['created_at'].to_pydatetime()
@@ -83,7 +83,7 @@ def update_profile(user, markets, now):
     # Get pnL data wrt to 1m record
     try:
         date_from = now - timedelta(days=30)
-        date_fom = date_from.replace(microsecond=0, second=0, minute=0, hour=0)
+        date_from = date_from.replace(microsecond=0, second=0, minute=0, hour=0)
 
         stats = trader.get_stats(date_from, now, base='USDT')
         first_date = stats.iloc[0]['created_at'].to_pydatetime()
