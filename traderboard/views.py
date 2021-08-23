@@ -162,6 +162,7 @@ def show_trading_accounts(request):
 
 @login_required
 def add_trading_account(request):
+    from scripts.event_handler import loop as event_loop
     user = User.objects.get(pk=request.user.id)
     args = {}
     args.update(csrf(request))
@@ -179,6 +180,10 @@ def add_trading_account(request):
             except Exception as e:
                 print(e)
                 messages.error(request, 'Account synchronization failed.')
+
+            # add trading account to trading loop
+            event_loop.create_task(get_events(ta), name=ta.api_key)
+
             return redirect('trading_accounts')
         else:
             messages.error(request, 'Invalid API information. \n\

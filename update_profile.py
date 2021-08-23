@@ -17,7 +17,7 @@ if __name__ == '__main__':
     # Take time snapshot of market state
     now = datetime.now(timezone.utc)
     today = datetime.combine(now, datetime.min.time(), timezone.utc)
-    markets = {platform : Market.trading_from(platform) for platform in __PLATFORMS__}
+    markets = {platform : Market.connect(platform) for platform in __PLATFORMS__}
     users = User.objects.all()
 
     for user in users:

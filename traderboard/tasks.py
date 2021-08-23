@@ -1,7 +1,7 @@
 import time
 from celery import shared_task
 from Trader import Trader
-from TradingClient import TradingClient
+from TradingClient import TradingClient, AsyncTradingClient
 from Market import Market
 from traderboard.models import SnapshotAccount, SnapshotAccountDetails, AccountTrades, AccountTransactions
 from Trader import Trader
@@ -16,7 +16,7 @@ def take_snapshot(ta, market, now):
     '''Take snapshot of a TradingAccount'''
     assert ta.platform == market.platform, f"Trading account and market must belong to the same trading platform:\
          {ta.platform} != {market.platform}"
-    tc = TradingClient.trading_from(ta)
+    tc = TradingClient.connect(ta)
     # get balances
     balance_btc = tc.get_balances_value(market, 'BTC')
     balance_usdt = tc.get_balances_value(market, 'USDT')
@@ -94,7 +94,7 @@ def update_order_history(ta, now, market):
     except AccountTrades.DoesNotExist:
         date_from = now - timedelta(days=31)
     
-    tc = TradingClient.trading_from(ta)
+    tc = TradingClient.connect(ta)
     tc.set_order_history(date_from, now, market)
 
 
@@ -106,7 +106,7 @@ def update_transaction_history(ta, now, market):
     except AccountTransactions.DoesNotExist:
         date_from = now - timedelta(days=31)
     
-    tc = TradingClient.trading_from(ta)
+    tc = TradingClient.connect(ta)
     tc.set_order_history(date_from, now, market)
 
 
@@ -115,16 +115,20 @@ def update_transaction_history(ta, now, market):
 
 def load_account_history(user, ta):
     '''Load past balance data at trading account registration'''
-    market = Market.trading_from(ta.platform)
+    market = Market.connect(ta.platform)
     now = datetime.now(timezone.utc)
     today = datetime.combine(now, datetime.min.time(), timezone.utc)
     date_from = now - timedelta(days=30)
-    tc = TradingClient.trading_from(ta)
+    tc = TradingClient.connect(ta)
     tc.load_account_history(date_from, now, market)
     take_snapshot(ta, market, now)
     update_profile(user, None, today)
     print(f'Historic of account {ta.id} is loading...')
 
 
-
-    
+async def get_events(ta):
+    tc = await AsyncTradingClient.connect(ta)
+    try:
+        await tc.get_events()
+    except:
+        await tc.close_connection()

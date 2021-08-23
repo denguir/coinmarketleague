@@ -11,7 +11,7 @@ class Trader(object):
         self.user = user
         self.tas = TradingAccount.objects.filter(user=user)
         self.markets = self.load_markets(markets)
-        self.tcs = [(TradingClient.trading_from(ta), self.markets[ta.platform]) for ta in self.tas]
+        self.tcs = [(TradingClient.connect(ta), self.markets[ta.platform]) for ta in self.tas]
 
     def load_markets(self, markets):
         if markets:
@@ -20,7 +20,7 @@ class Trader(object):
             mkt = {}
             for ta in self.tas:
                 if ta.platform not in mkt.keys():
-                    mkt[ta.platform] = Market.trading_from(ta.platform)
+                    mkt[ta.platform] = Market.connect(ta.platform)
             return mkt
 
     def get_balances(self):
@@ -137,8 +137,8 @@ class Trader(object):
 
     def get_transaction_history(self, date_from, date_to):
         trans_hist = pd.DataFrame(columns=['created_at', 'asset', 'amount', 'side'])
-        for tc, _ in self.tcs:
-            tc_trans = tc.get_transaction_history(date_from, date_to)
+        for tc, market in self.tcs:
+            tc_trans = tc.get_transaction_history(date_from, date_to, market)
             trans_hist = trans_hist.append(tc_trans)
         return trans_hist
 

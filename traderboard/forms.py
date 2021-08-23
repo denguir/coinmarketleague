@@ -108,7 +108,7 @@ class AddTradingAccountForm(forms.ModelForm):
         
         # check if api key, secret pair is valid 
         ta = TradingAccount(user=self.user, platform=platform, api_key=api_key, api_secret=api_secret)
-        tc = TradingClient.trading_from(ta)
+        tc = TradingClient.connect(ta)
         try:
             tc.get_balances()
         except:

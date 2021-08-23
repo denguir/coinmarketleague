@@ -380,10 +380,10 @@ class AsyncBinanceTradingClient:
         self.api_secret = self.ta.api_secret
 
     @classmethod
-    async def connect(cls, ta, loop):
+    async def connect(cls, ta):
         # register in db conn event
         self = cls(ta)
-        self.client = await AsyncClient.create(api_key=self.api_key, api_secret=self.api_secret, loop=loop)
+        self.client = await AsyncClient.create(api_key=self.api_key, api_secret=self.api_secret)
         self.socket_manager = BinanceSocketManager(self.client)
         return self
 
@@ -437,9 +437,9 @@ class AsyncTradingClient:
         }
     
     @classmethod
-    def connect(cls, ta, loop=None):
+    def connect(cls, ta):
         self = cls()
         client = self._clients[ta.platform]
         if not client:
             raise ValueError(f'Platform not supported - {ta.platform}')
-        return client.connect(ta, loop)
+        return client.connect(ta)

@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'widget_tweaks',
     'encrypted_fields',
     'verify_email',
+    'django_extensions',
 
 ]
 
