@@ -1,3 +1,4 @@
+import asyncio
 from multipledispatch import dispatch
 import time
 import pandas as pd
@@ -103,8 +104,8 @@ class BinanceTradingClient:
         pnl_hist = pd.DataFrame.from_records(snaps)
         
     def get_deposit_history(self, date_from, date_to, market):
-        start = market.to_timestamp(date_from)
-        end = market.to_timestamp(date_to)
+        start = Market.to_timestamp(date_from)
+        end = Market.to_timestamp(date_to)
         info = self.client.get_deposit_history(startTime=start, endTime=end, status=1)
         deposits = pd.DataFrame(columns=['time', 'asset', 'amount'])
         if info:
@@ -112,15 +113,15 @@ class BinanceTradingClient:
             if deposits['insertTime'].dtype == np.int64:
                 deposits['time'] = deposits['insertTime']
             else:
-                deposits['time'] = deposits['insertTime'].apply(lambda x: market.to_timestamp(x))
+                deposits['time'] = deposits['insertTime'].apply(lambda x: Market.to_timestamp(x))
             deposits['asset'] = deposits['coin']
             deposits['amount'] = deposits['amount'].astype(float)
             deposits = deposits[['time', 'asset', 'amount']]
         return deposits
 
     def get_withdrawal_history(self, date_from, date_to, market):
-        start = market.to_timestamp(date_from)
-        end = market.to_timestamp(date_to)
+        start = Market.to_timestamp(date_from)
+        end = Market.to_timestamp(date_to)
         info = self.client.get_withdraw_history(startTime=start, endTime=end, status=6)
         withdrawals = pd.DataFrame(columns=['time', 'asset', 'amount'])
         if info:
@@ -128,7 +129,7 @@ class BinanceTradingClient:
             if withdrawals['applyTime'].dtype == np.int64:
                 withdrawals['time'] = withdrawals['applyTime']
             else:
-                withdrawals['time'] = withdrawals['applyTime'].apply(lambda x: market.to_timestamp(x))
+                withdrawals['time'] = withdrawals['applyTime'].apply(lambda x: Market.to_timestamp(x))
             withdrawals['asset'] = withdrawals['coin']
             withdrawals['amount'] = withdrawals['amount'].astype(float)
             withdrawals = withdrawals[['time', 'asset', 'amount']]
@@ -163,8 +164,8 @@ class BinanceTradingClient:
                                         asset=trans['asset'], 
                                         amount=trans['amount'],
                                         side=trans['side'],
-                                        created_at=market.to_datetime(trans['time']),
-                                        updated_at=market.to_datetime(trans['time'])
+                                        created_at=Market.to_datetime(trans['time']),
+                                        updated_at=Market.to_datetime(trans['time'])
                                          )
             move.save()
 
@@ -185,8 +186,8 @@ class BinanceTradingClient:
 
     @dispatch(datetime, datetime, BinanceMarket)
     def get_order_history(self, date_from, date_to, market):
-        start = market.to_timestamp(date_from)
-        end = market.to_timestamp(date_to)
+        start = Market.to_timestamp(date_from)
+        end = Market.to_timestamp(date_to)
         orders =  pd.DataFrame(columns=['time', 'asset', 'amount', 'base', 'price', 'side'])
 
         for i, exchange in market.table.iterrows():
@@ -219,8 +220,8 @@ class BinanceTradingClient:
                                   amount=order['amount'], 
                                   price=order['price'], 
                                   side=order['side'],
-                                  created_at=market.to_datetime(order['time']),
-                                  updated_at=market.to_datetime(order['time'])
+                                  created_at=Market.to_datetime(order['time']),
+                                  updated_at=Market.to_datetime(order['time'])
                                 )
             trade.save()
 
@@ -272,7 +273,7 @@ class BinanceTradingClient:
 
     def get_daily_value(self, balances, market, base='USDT'):
         '''Compute the value of a balances using the historic market prices'''
-        balances['day'] = balances['time'].apply(lambda ts: market.to_date(ts))
+        balances['day'] = balances['time'].apply(lambda ts: Market.to_date(ts))
         balances['value'] = 0.0
         for _, bal in balances.iterrows():
             prices = market.get_daily_prices(bal['asset'], base, bal['day'], bal['day'] + timedelta(days=1))
@@ -290,8 +291,8 @@ class BinanceTradingClient:
     def load_account_history(self, date_from, date_to, market):
         '''This method should be only triggered when a user registers a new 
         Binance trading account to the website'''
-        start = market.to_timestamp(date_from)
-        end = market.to_timestamp(date_to)
+        start = Market.to_timestamp(date_from)
+        end = Market.to_timestamp(date_to)
 
         # get balance history
         hist = self.client.get_account_snapshot(type='SPOT', startTime=start, endTime=end)['snapshotVos']
@@ -362,8 +363,8 @@ class BinanceTradingClient:
                                 balance_usdt=stat['close_balance_usdt'].sum(), 
                                 pnl_btc=stat['pnl_btc'].sum(),
                                 pnl_usdt=stat['pnl_usdt'].sum(),
-                                created_at=market.to_datetime(ts),
-                                updated_at=market.to_datetime(ts))
+                                created_at=Market.to_datetime(ts),
+                                updated_at=Market.to_datetime(ts))
             snap.save()
 
             for _, item in stat.iterrows():
@@ -398,13 +399,15 @@ class AsyncBinanceTradingClient:
         us = self.socket_manager.user_socket()
         async with us as uscm:
             while True:
-                event = await uscm.recv()
-                # put task in celery queue
-                if event['e'] == "balanceUpdate":
-                    tasks.record_transaction(event, self.ta)
-                elif event['e'] == "executionReport" and event["X"] == "TRADE":
-                    tasks.record_trade(event, self.ta)
-        await self.close_connection()
+                try:
+                    event = await uscm.recv()
+                    # put task in celery queue
+                    if event['e'] == "balanceUpdate":
+                        tasks.record_transaction(event, self.ta)
+                    elif event['e'] == "executionReport" and event["X"] == "TRADE":
+                        tasks.record_trade(event, self.ta)
+                except:
+                    break
 
     async def get_trades(self, symbol):
         ts = self.socket_manager.trade_socket(symbol)
@@ -412,7 +415,6 @@ class AsyncBinanceTradingClient:
             while True:
                 res = await tscm.recv()
                 print(f"{res['e']} by account {self.ta.id}")
-        await self.close_connection()
 
 
 class TradingClient:

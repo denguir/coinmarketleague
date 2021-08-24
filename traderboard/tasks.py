@@ -1,4 +1,5 @@
 import time
+import asyncio
 from celery import shared_task
 from Trader import Trader
 from TradingClient import TradingClient, AsyncTradingClient

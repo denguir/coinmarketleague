@@ -21,8 +21,14 @@ def update_tasks(loop):
         tasks_to_create = set(tas.keys()) - set(tasks.keys())
 
         for task_id in tasks_to_cancel:
-            tasks[task_id].cancel()
-            print(f'task {task_id} successfully canceled.')
+            task = tasks[task_id]
+            task.cancel()
+
+            if task.cancelled() or task.done():
+                print(f'task {task_id} successfully canceled.')
+            else:
+                print(f'task {task_id} failed to cancel.')
+
         
         for task_id in tasks_to_create:
             loop.create_task(get_events(tas[task_id]), name=task_id)
@@ -30,7 +36,6 @@ def update_tasks(loop):
         
         time.sleep(10)
         
-
 
 def run():
     loop = asyncio.get_event_loop()
