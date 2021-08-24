@@ -134,8 +134,8 @@ class Trader(object):
 
     def get_transaction_history(self, date_from, date_to):
         trans_hist = pd.DataFrame(columns=['created_at', 'asset', 'amount', 'side'])
-        for tc, _ in self.tcs:
-            tc_trans = tc.get_transaction_history(date_from, date_to)
+        for tc, market in self.tcs:
+            tc_trans = tc.get_transaction_history(date_from, date_to, market)
             trans_hist = trans_hist.append(tc_trans)
         return trans_hist
 
