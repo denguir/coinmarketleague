@@ -63,6 +63,22 @@ class BinanceTradingClient(TradingClient):
         balances = balances[balances['amount'] > 0.0]
         return balances[['asset', 'amount']]
 
+    @dispatch(SnapshotAccount, SnapshotAccount, BinanceMarket, str)
+    def get_PnL(self, snap_from, snap_to, market, base='USDT'):
+        deposits = self.get_deposits_value(snap_from.created_at, snap_to.created_at, market, base)
+        withdrawals = self.get_withdrawals_value(snap_from.created_at, snap_to.created_at, market, base)
+
+        if base == 'USDT':
+            balance_from = float(snap_from.balance_usdt)
+            balance_to = float(snap_to.balance_usdt)
+        elif base == 'BTC':
+            balance_from = float(snap_from.balance_btc)   
+            balance_to = float(snap_to.balance_btc)
+
+        pnl = balance_to - balance_from - deposits + withdrawals 
+        return pnl
+
+    @dispatch(SnapshotAccount, datetime, BinanceMarket, str)
     def get_PnL(self, snap, now, market, base='USDT'):
         deposits = self.get_deposits_value(snap.created_at, now, market, base)
         withdrawals = self.get_withdrawals_value(snap.created_at, now, market, base)

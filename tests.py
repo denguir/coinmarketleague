@@ -21,12 +21,21 @@ date_to = datetime.now(timezone.utc)
 user = User.objects.get(username='Vador')
 ta = TradingAccount.objects.get(user=user)
 tc = TradingClient.trading_from(ta)
+market = Market.trading_from(ta.platform)
 
 trader = Trader(user)
 
-date_from = date_to - timedelta(days=30)
+date_from = date_to - timedelta(days=31)
 df = trader.get_stats(date_from, date_to)
 print(df)
 
-df = trader.get_aggregated_stats(date_from, date_to, freq='D')
-print(df)
+snaps = SnapshotAccount.objects.all().order_by('created_at')
+snap_from = snaps[1]
+snap_to = snaps[2]
+
+
+print(snap_from.created_at)
+print(snap_to.created_at)
+
+pnl = tc.get_PnL(snap_from, snap_to, market, 'USDT')
+print(pnl)
