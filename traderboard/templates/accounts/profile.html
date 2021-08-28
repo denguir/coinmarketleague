@@ -9,6 +9,14 @@
 <!-- Begin Page Content -->
 <div class="container-fluid">
 
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+    </div>
+    {% endfor %}
+{% endif %}
+
   <!-- Page Heading -->
   <div class="d-sm-flex align-items-center justify-content-between mb-4">
       <h1 class="h3 mb-0 text-gray-800 mr-auto">{{ trader.username }}'s trading dashboard</h1>
@@ -38,7 +46,7 @@
                       <div class="col mr-2">
                           <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
                               PnL (Daily)</div>
-                            {% if trader.profile.daily_pnl %}
+                            {% if trader.profile.daily_pnl is not None %}
                                 <div class="h5 mb-0 font-weight-bold text-gray-800">{{ trader.profile.daily_pnl }} %</div>
                             {% else %}
                                 <div class="h5 mb-0 font-weight-bold text-gray-800">Not available</div>
@@ -57,7 +65,7 @@
                       <div class="col mr-2">
                           <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
                               PnL (Weekly)</div>
-                            {% if trader.profile.weekly_pnl %}
+                            {% if trader.profile.weekly_pnl is not None %}
                               <div class="h5 mb-0 font-weight-bold text-gray-800">{{ trader.profile.weekly_pnl }} %</div>
                             {% else %}
                               <div class="h5 mb-0 font-weight-bold text-gray-800">Not available</div>
@@ -78,7 +86,7 @@
                           </div>
                           <div class="row no-gutters align-items-center">
                               <div class="col-auto">
-                                {% if trader.profile.monthly_pnl %}
+                                {% if trader.profile.monthly_pnl is not None %}
                                 <div class="h5 mb-0 font-weight-bold text-gray-800">{{ trader.profile.monthly_pnl }} %</div>
                                 {% else %}
                                 <div class="h5 mb-0 font-weight-bold text-gray-800">Not available</div>
@@ -228,7 +236,6 @@
                 </div>
             </div>
         </div>
-
         {% if not overview %}
         <div class="col-xl-6 col-lg-12">
             <div class="card shadow mb-4">
@@ -481,7 +488,6 @@
 </script>
 
 {{ balance_percentage|json_script:"balance_percentage" }}
-
 <script type="text/javascript">
     // Set new default font family and font color to mimic Bootstrap's default styling
     Chart.defaults.global.defaultFontFamily = 'Nunito', '-apple-system,system-ui,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif';
@@ -568,7 +574,6 @@
 </script>
 
 {{ daily_pnl_hist|json_script:"daily_pnl_hist" }}
-
 <script type="text/javascript">
     function round1000(x){
         if (x > 0) {
@@ -664,7 +669,7 @@
 
 </script>
 
-<script>
+<!-- <script>
 $(document).ready(function () {
     $('#tradeTable').DataTable({
     "scrollY": "50vh",
@@ -672,6 +677,5 @@ $(document).ready(function () {
     });
     $('.dataTables_length').addClass('bs-select');
 });
-</script>
+</script> -->
 {% endblock %}
-

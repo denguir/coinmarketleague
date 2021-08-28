@@ -6,7 +6,7 @@ from traderboard.models import Profile, TradingAccount
 from TradingClient import TradingClient
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from datetime import date, datetime, timezone
-
+from django.utils.safestring import mark_safe
 
 __PLATFORMS__ = ['Binance']
 
@@ -50,7 +50,7 @@ class RegistrationForm(UserCreationForm):
 
 class EditProfileForm(UserChangeForm):
     password = None
-    username = forms.CharField(max_length=30, disabled=True)
+    # username = forms.CharField(max_length=30, disabled=False)
     class Meta:
         model = User
         fields = (
@@ -84,8 +84,8 @@ class AddTradingAccountForm(forms.ModelForm):
     CHOICES = [("Binance", "Binance")]
 
     platform = forms.ChoiceField(choices=CHOICES)
-    api_key = forms.CharField(widget=forms.PasswordInput, min_length=64, max_length=64, required=True, help_text='Provide with READ ONLY API key')
-    api_secret = forms.CharField(widget=forms.PasswordInput, min_length=64, max_length=64, required=True, help_text='Provide with READ ONLY API secret')
+    api_key = forms.CharField(widget=forms.PasswordInput, min_length=64, max_length=64, required=True, help_text=mark_safe('Provide with <b>READ ONLY</b> API key - <a href="https://vimeo.com/524179256">See tutorial </a>'))
+    api_secret = forms.CharField(widget=forms.PasswordInput, min_length=64, max_length=64, required=True, help_text=mark_safe('Provide with <b>READ ONLY</b> API secret - <a href="https://vimeo.com/524179256">See tutorial </a>'))
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
@@ -108,7 +108,7 @@ class AddTradingAccountForm(forms.ModelForm):
         
         # check if api key, secret pair is valid 
         ta = TradingAccount(user=self.user, platform=platform, api_key=api_key, api_secret=api_secret)
-        tc = TradingClient.connect(ta)
+        tc = TradingClient.trading_from(ta)
         try:
             tc.get_balances()
         except:
@@ -145,3 +145,4 @@ class ProfileFilterForm(forms.Form):
         self.cleaned_data['date_from'] = date_from
         self.cleaned_data['date_to'] = date_to
         return self.cleaned_data
+        
