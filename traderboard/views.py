@@ -81,7 +81,7 @@ def show_overview_profile(request, pk=None):
     trader = Trader(user)
     req_profile = Profile.objects.get(user=request.user)
     if request.method == 'GET':
-        if req_profile.nacc > 0:
+        if req_profile.nacc > 0 and user.profile.nacc > 0:
             form = ProfileFilterForm(request.GET)
             if form.is_valid():
                 profile = trader.get_profile(form.cleaned_data['date_from'], 
@@ -90,15 +90,18 @@ def show_overview_profile(request, pk=None):
                                              not user.profile.public)
             else:
                 # by default, show last week stats
-                # by default, show last week stats
                 now = datetime.now(timezone.utc)
                 date_from = datetime.combine(now - timedelta(days=7), datetime.min.time(), timezone.utc)
                 date_to = datetime.combine(now, datetime.max.time(), timezone.utc)
                 profile = trader.get_profile(date_from, date_to, 'USDT', not user.profile.public)
         else:
             profile = {'overview': True, 'trader': user}
-            messages.info(request, 'You have no trading account linked to your profile.\n\
-                                    Upgrade your profile on Settings > Link trading account to be able to inspect others dashboard !')
+            if req_profile.nacc:
+                messages.info(request, 'This trading account is empty.')                
+                            
+            else:         
+                messages.info(request, 'You have no trading account linked to your profile.\n\
+                                        Upgrade your profile on Settings > Link trading account to be able to inspect others dashboard !')
         
         profile['user'] = request.user
         return render(request, 'accounts/profile.html', profile)
