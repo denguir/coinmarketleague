@@ -18,7 +18,7 @@ class Profile(models.Model):
 
     # number of trading accounts linked to user 
     nacc = models.IntegerField(default=0)
-
+    
 
 class TradingAccount(models.Model):
     '''Trading account of a given User on a supported TradingPlatform'''
@@ -60,8 +60,7 @@ class AccountTrades(models.Model):
     account = models.ForeignKey(TradingAccount, on_delete=models.CASCADE)
     created_at = models.DateTimeField()
     updated_at = models.DateTimeField()
-    asset = models.CharField(max_length=10)
-    base = models.CharField(max_length=10)
+    symbol = models.CharField(max_length=20, default='Unknown')
     amount = models.DecimalField(max_digits=30, decimal_places=8)
     price = models.DecimalField(max_digits=30, decimal_places=8)
     side = models.CharField(max_length=10)

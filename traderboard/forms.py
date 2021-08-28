@@ -84,8 +84,22 @@ class AddTradingAccountForm(forms.ModelForm):
     CHOICES = [("Binance", "Binance")]
 
     platform = forms.ChoiceField(choices=CHOICES)
-    api_key = forms.CharField(widget=forms.PasswordInput, min_length=64, max_length=64, required=True, help_text=mark_safe('Provide with <b>READ ONLY</b> API key - <a href="https://vimeo.com/524179256">See tutorial </a>'))
-    api_secret = forms.CharField(widget=forms.PasswordInput, min_length=64, max_length=64, required=True, help_text=mark_safe('Provide with <b>READ ONLY</b> API secret - <a href="https://vimeo.com/524179256">See tutorial </a>'))
+    api_key = forms.CharField(widget=forms.PasswordInput, 
+                              min_length=64, 
+                              max_length=64, 
+                              required=True, 
+                              help_text=mark_safe(
+                                    'Provide with <b>READ ONLY</b> API key -\
+                                    <a href="https://www.youtube.com/watch?v=ukQR3KGVn0k&t=5s" target="_blank">\
+                                    See tutorial </a>'))
+    api_secret = forms.CharField(widget=forms.PasswordInput, 
+                                 min_length=64, 
+                                 max_length=64, 
+                                 required=True, 
+                                 help_text=mark_safe(
+                                    'Provide with <b>READ ONLY</b> API secret -\
+                                    <a href="https://www.youtube.com/watch?v=ukQR3KGVn0k&t=5s" target="_blank">\
+                                    See tutorial </a>'))
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)

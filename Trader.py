@@ -11,7 +11,7 @@ class Trader(object):
         self.user = user
         self.tas = TradingAccount.objects.filter(user=user)
         self.markets = self.load_markets(markets)
-        self.tcs = [(TradingClient.trading_from(ta), self.markets[ta.platform]) for ta in self.tas]
+        self.tcs = [(TradingClient.connect(ta), self.markets[ta.platform]) for ta in self.tas]
 
     def load_markets(self, markets):
         if markets:
@@ -20,7 +20,7 @@ class Trader(object):
             mkt = {}
             for ta in self.tas:
                 if ta.platform not in mkt.keys():
-                    mkt[ta.platform] = Market.trading_from(ta.platform)
+                    mkt[ta.platform] = Market.connect(ta.platform)
             return mkt
 
     def get_balances(self):
@@ -145,7 +145,10 @@ class Trader(object):
 
         # collect daily stats and interpolate missing values
         stats = self.get_aggregated_stats(date_from, date_to, freq='D', base=base)
+<<<<<<< HEAD
+=======
         print(stats)
+>>>>>>> master
         # get PnL aggregated history
         cum_pnl_hist = {'labels': stats['created_at'].apply(
                                     lambda x: x.to_pydatetime().strftime('%d %b')).tolist(),
@@ -189,4 +192,3 @@ class Trader(object):
             # trans_hist = trans_hist.to_dict('records')
             # profile['trans_hist'] = trans_hist
         return profile
-
