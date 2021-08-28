@@ -9,7 +9,8 @@ from Market import BinanceMarket, Market
 from django.db.models.functions import TruncDay
 from django.db.models import Max, Sum
 from traderboard.models import SnapshotAccount, SnapshotAccountDetails, AccountTrades, AccountTransactions
-import traderboard.celery_tasks as tasks
+import traderboard.async_tasks as tasks
+
 
 __PLATFORMS__ = ['Binance']
 
@@ -102,7 +103,29 @@ class BinanceTradingClient:
                                        .annotate(day=TruncDay('created_at'))\
                                        .filter(day__range=[date_from, date_to])
         pnl_hist = pd.DataFrame.from_records(snaps)
-        
+
+    def get_snapshot_history(self, date_from, date_to, base='USDT'):
+        snaps = SnapshotAccount.objects.filter(account=self.ta)\
+                                       .filter(created_at__range=[date_from, date_to])\
+                                       .values('created_at', 
+                                               'pnl_usdt', 
+                                               'pnl_btc', 
+                                               'balance_usdt', 
+                                               'balance_btc')
+        snaps = pd.DataFrame.from_records(snaps)
+        if snaps.empty:
+            snaps = pd.DataFrame(columns=['created_at', 'pnl', 'balance'])
+        else:
+            if base == 'BTC':
+                snaps['pnl'] = snaps['pnl_btc'].astype(float)
+                snaps['balance'] = snaps['balance_btc'].astype(float)
+            else:
+                snaps['pnl'] = snaps['pnl_usdt'].astype(float)
+                snaps['balance'] = snaps['balance_usdt'].astype(float)
+
+            snaps = snaps[['created_at', 'pnl', 'balance']]
+        return snaps
+
     def get_deposit_history(self, date_from, date_to, market):
         start = Market.to_timestamp(date_from)
         end = Market.to_timestamp(date_to)
@@ -402,19 +425,26 @@ class AsyncBinanceTradingClient:
                 try:
                     event = await uscm.recv()
                     # put task in celery queue
-                    if event['e'] == "balanceUpdate":
-                        tasks.record_transaction(event, self.ta)
-                    elif event['e'] == "executionReport" and event["X"] == "TRADE":
-                        tasks.record_trade(event, self.ta)
-                except:
+                    if event:
+                        if event['e'] == "balanceUpdate":
+                            await tasks.record_transaction(event, self.ta)
+                        elif event['e'] == "executionReport" and event["X"] == "TRADE":
+                            await tasks.record_trade(event, self.ta)
+                except Exception as e:
+                    print(e)
                     break
+        await self.close_connection()
 
     async def get_trades(self, symbol):
         ts = self.socket_manager.trade_socket(symbol)
         async with ts as tscm:
             while True:
-                res = await tscm.recv()
-                print(f"{res['e']} by account {self.ta.id}")
+                try:
+                    res = await tscm.recv()
+                    print(f"{res['e']} by account {self.ta.id}")
+                except:
+                    break
+        await self.close_connection()
 
 
 class TradingClient:

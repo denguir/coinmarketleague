@@ -1,6 +1,5 @@
 import time
 import asyncio
-from celery import shared_task
 from Trader import Trader
 from TradingClient import TradingClient, AsyncTradingClient
 from Market import Market
@@ -48,32 +47,51 @@ def take_snapshot(ta, market, now):
     return snap
 
 
-def update_profile(user, markets, today):
+def update_profile(user, markets, now):
     '''Update account level user stats'''
     trader = Trader(user, markets)
-    # Get pnL data wrt to 24h record 
+
+    # Get pnL data wrt to 24h record
     try:
-        pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=1), today, 'USDT')
-        print(pnl_hist_usdt)
-        daily_pnl = float(pnl_hist_usdt[pnl_hist_usdt['day'] == today]['cum_pnl_perc'])
+        date_from = now - timedelta(days=1)
+        date_from = date_from.replace(microsecond=0, second=0, minute=0)
+
+        stats = trader.get_stats(date_from, now, base='USDT')
+        first_date = stats.iloc[0]['created_at'].to_pydatetime()
+        if abs(date_from - first_date) < timedelta(hours=1):
+            daily_pnl = float(stats.iloc[-1]['cum_pnl_rel'])
+        else:
+            daily_pnl = None
     except Exception as e:
         print(e)
         daily_pnl = None
     
     # Get pnL data wrt to 7d record
     try:
-        pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=7), today, 'USDT')
-        print(pnl_hist_usdt)
-        weekly_pnl = float(pnl_hist_usdt[pnl_hist_usdt['day'] == today]['cum_pnl_perc'])
+        date_from = now - timedelta(days=7)
+        date_from = date_from.replace(microsecond=0, second=0, minute=0, hour=0)
+
+        stats = trader.get_stats(date_from, now, base='USDT')
+        first_date = stats.iloc[0]['created_at'].to_pydatetime()
+        if abs(date_from - first_date) < timedelta(days=1):
+            weekly_pnl = float(stats.iloc[-1]['cum_pnl_rel'])
+        else:
+            weekly_pnl = None
     except Exception as e:
         print(e)
         weekly_pnl = None
 
     # Get pnL data wrt to 1m record
     try:
-        pnl_hist_usdt = trader.get_daily_cumulative_relative_PnL(today - timedelta(days=30), today, 'USDT')
-        print(pnl_hist_usdt)
-        monthly_pnl = float(pnl_hist_usdt[pnl_hist_usdt['day'] == today]['cum_pnl_perc'])
+        date_from = now - timedelta(days=30)
+        date_from = date_from.replace(microsecond=0, second=0, minute=0, hour=0)
+
+        stats = trader.get_stats(date_from, now, base='USDT')
+        first_date = stats.iloc[0]['created_at'].to_pydatetime()
+        if abs(date_from - first_date) < timedelta(days=1):
+            monthly_pnl = float(stats.iloc[-1]['cum_pnl_rel'])
+        else:
+            monthly_pnl = None
     except Exception as e:
         print(e)
         monthly_pnl = None
@@ -131,5 +149,13 @@ async def get_events(ta):
     tc = await AsyncTradingClient.connect(ta)
     try:
         await tc.get_events()
+    except:
+        await tc.close_connection()
+
+
+async def get_trades(ta, symbol):
+    tc = await AsyncTradingClient.connect(ta)
+    try:
+        await tc.get_trades(symbol)
     except:
         await tc.close_connection()

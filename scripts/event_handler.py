@@ -1,12 +1,10 @@
 import time
 import asyncio
-from asgiref.sync import sync_to_async
 from django.contrib.auth.models import User
 from traderboard.models import TradingAccount
-from TradingClient import AsyncTradingClient
 from Market import Market
 from datetime import datetime, timezone
-from traderboard.tasks import get_events
+from traderboard.tasks import get_events, get_trades
 from asgiref.sync import sync_to_async
 from contextlib import suppress
 
@@ -14,35 +12,32 @@ from contextlib import suppress
 __PLATFORMS__ = ['Binance']
 
 
-def update_tasks(loop):
-    while True:
-        tas = {ta.api_key: ta for ta in TradingAccount.objects.all()}
-        tasks = {task.get_name(): task for task in asyncio.all_tasks(loop=loop)}
+@sync_to_async(thread_sensitive=True)
+def get_trading_accounts():
+    tas_qs = TradingAccount.objects.all()
+    tas = {}
+    for ta in tas_qs:
+        tas[ta.api_key] = ta
+    return tas
 
-        tasks_to_cancel = set(tasks.keys()) - set(tas.keys())
+
+async def update_tasks(loop):
+    while True:
+        tas = await get_trading_accounts()
+        tasks = {task.get_name(): task for task in asyncio.all_tasks(loop=loop)}
         tasks_to_create = set(tas.keys()) - set(tasks.keys())
 
-        for task_id in tasks_to_cancel:
-            task = tasks[task_id]
-            task.cancel()
-            with suppress(asyncio.CancelledError):
-                loop.run_until_complete(task)
-
-            if task.cancelled() or task.done():
-                print(f'task {task_id} successfully canceled.')
-            else:
-                print(f'task {task_id} failed to cancel.')
-
         for task_id in tasks_to_create:
-            loop.create_task(get_events(tas[task_id]), name=task_id)
+            ta = tas[task_id]
+            loop.create_task(get_events(ta), name=task_id)
             print(f'task {task_id} successfully created.')
         
-        time.sleep(10)
-        
+        await asyncio.sleep(10)
+
 
 def run():
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(update_tasks(loop))
-    loop.close()
+    loop.create_task(update_tasks(loop), name='main')
+    loop.run_forever()
 
 

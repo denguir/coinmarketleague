@@ -10,40 +10,28 @@ from TradingClient import TradingClient, AsyncTradingClient
 from datetime import datetime, timedelta, timezone
 from django.contrib.auth.models import User
 from Trader import Trader
-from traderboard.tasks import update_profile
+from traderboard.tasks import update_profile, get_events, get_trades
 from traderboard.models import SnapshotAccount, SnapshotAccountDetails, TradingAccount, AccountTrades, AccountTransactions
-import pandas as pd
 from asgiref.sync import sync_to_async
+import pandas as pd
 
-
-# async def main(loop):
-#     user = await sync_to_async(User.objects.get, thread_sensitive=True)(username='Vador')
-#     ta = await sync_to_async(TradingAccount.objects.get, thread_sensitive=True)(user=user)
-#     tc = await TradingClient.connect(ta)
-#     while True:
-#         cmd = await aioconsole.ainput("New request:")
-#         if cmd.startswith('get_trades'):
-#             symbol = cmd.split()[1]
-#             loop.create_task(tc.get_trades(symbol))
-#         elif cmd.startswith('get_balances'):
-#             loop.create_task(tc.get_balances())
-#     print(bal)
-
-
-loop = asyncio.get_event_loop()
-
-
-def _get_last_snap(ta):
-    snap = SnapshotAccount.objects.filter(account=ta).latest('created_at')
-    return snap
 
 async def main(loop):
     user = await sync_to_async(User.objects.get, thread_sensitive=True)(username='Vador')
     ta = await sync_to_async(TradingAccount.objects.get, thread_sensitive=True)(user=user)
-    snap = await sync_to_async(_get_last_snap, thread_sensitive=True)(ta)
-    tc = await AsyncTradingClient.connect(ta)
-    await tc.get_trades('BNBBTC')
+    loop.create_task(get_trades(ta, 'BNBBTC'), name=ta.api_key)
+    print(f'task {ta.api_key} created.')
+    # while True:
+    #     cmd = await aioconsole.ainput("New request:")
+    #     if cmd.startswith('get_trades'):
+    #         symbol = cmd.split()[1]
+    #         loop.create_task(tc.get_trades(symbol))
+    #     elif cmd.startswith('get_balances'):
+    #         loop.create_task(tc.get_balances())
+    # print(bal)
+
     
 def run():
-    loop.run_until_complete(main(loop))
-    loop.close()
+    loop = asyncio.get_event_loop()
+    loop.create_task(main(loop))
+    loop.run_forever()

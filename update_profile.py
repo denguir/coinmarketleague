@@ -16,7 +16,6 @@ __PLATFORMS__ = ['Binance']
 if __name__ == '__main__':
     # Take time snapshot of market state
     now = datetime.now(timezone.utc)
-    today = datetime.combine(now, datetime.min.time(), timezone.utc)
     markets = {platform : Market.connect(platform) for platform in __PLATFORMS__}
     users = User.objects.all()
 
@@ -32,4 +31,4 @@ if __name__ == '__main__':
             # async_task(update_order_history, (ta, now, markets[ta.platform]), ack_failure=True)
             # async_task(update_transaction_history, ta, now, markets[ta.platform], timeout=120, ack_failure=True)
         # Collect user level data
-        update_profile(user, markets, today)
+        update_profile(user, markets, now)
