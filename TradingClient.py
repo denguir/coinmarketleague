@@ -391,7 +391,7 @@ class AsyncBinanceTradingClient:
                     if event:
                         if event['e'] == "balanceUpdate":
                             await tasks.record_transaction(event, self.ta)
-                        elif event['e'] == "executionReport" and event["X"] == "TRADE":
+                        elif event['e'] == "executionReport" and event["x"] == "TRADE":
                             await tasks.record_trade(event, self.ta)
                 except Exception as e:
                     print(e)
