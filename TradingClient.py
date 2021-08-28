@@ -3,6 +3,7 @@ from multipledispatch import dispatch
 import time
 import pandas as pd
 import numpy as np
+from decimal import Decimal
 from datetime import date, datetime, timedelta, timezone
 from binance import Client, AsyncClient, BinanceSocketManager
 from Market import BinanceMarket, Market
@@ -166,7 +167,7 @@ class BinanceTradingClient:
         for _, trans in transactions.iterrows():
             move = AccountTransactions(account=self.ta, 
                                         asset=trans['asset'], 
-                                        amount=trans['amount'],
+                                        amount=Decimal(trans['amount']),
                                         side=trans['side'],
                                         created_at=Market.to_datetime(trans['time']),
                                         updated_at=Market.to_datetime(trans['time'])
@@ -221,8 +222,8 @@ class BinanceTradingClient:
             trade = AccountTrades(account=self.ta, 
                                   asset=order['asset'], 
                                   base=order['base'], 
-                                  amount=order['amount'], 
-                                  price=order['price'], 
+                                  amount=Decimal(order['amount']), 
+                                  price=Decimal(order['price']), 
                                   side=order['side'],
                                   created_at=Market.to_datetime(order['time']),
                                   updated_at=Market.to_datetime(order['time'])
@@ -345,16 +346,18 @@ class BinanceTradingClient:
 
         for ts, stat in stats:
             snap = SnapshotAccount(account=self.ta, 
-                                balance_btc=stat['close_balance_btc'].sum(), 
-                                balance_usdt=stat['close_balance_usdt'].sum(), 
-                                pnl_btc=stat['pnl_btc'].sum(),
-                                pnl_usdt=stat['pnl_usdt'].sum(),
+                                balance_btc=Decimal(stat['close_balance_btc'].sum()), 
+                                balance_usdt=Decimal(stat['close_balance_usdt'].sum()), 
+                                pnl_btc=Decimal(stat['pnl_btc'].sum()),
+                                pnl_usdt=Decimal(stat['pnl_usdt'].sum()),
                                 created_at=Market.to_datetime(ts),
                                 updated_at=Market.to_datetime(ts))
             snap.save()
 
             for _, item in stat.iterrows():
-                detail = SnapshotAccountDetails(snapshot=snap, asset=item['asset'], amount=item['amount'])
+                detail = SnapshotAccountDetails(snapshot=snap, 
+                                                asset=item['asset'], 
+                                                amount=Decimal(item['amount']))
                 detail.save()
 
 

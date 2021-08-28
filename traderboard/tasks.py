@@ -7,6 +7,7 @@ from traderboard.models import SnapshotAccount, SnapshotAccountDetails, AccountT
 from Trader import Trader
 from datetime import datetime, timedelta, timezone
 from django.contrib.auth.models import User
+from decimal import Decimal
 
 
 __PLATFORMS__ = ['Binance']
@@ -18,16 +19,16 @@ def take_snapshot(ta, market, now):
          {ta.platform} != {market.platform}"
     tc = TradingClient.connect(ta)
     # get balances
-    balance_btc = tc.get_balances_value(market, 'BTC')
-    balance_usdt = tc.get_balances_value(market, 'USDT')
+    balance_btc = Decimal(tc.get_balances_value(market, 'BTC'))
+    balance_usdt = Decimal(tc.get_balances_value(market, 'USDT'))
     # get balance details
     balance_details = tc.get_balances()
 
     # Get pnL data wrt to last record 
     try:
         last_snap = SnapshotAccount.objects.filter(account=ta).latest('created_at')
-        pnl_btc = tc.get_PnL(last_snap, now, market, 'BTC')
-        pnl_usdt = tc.get_PnL(last_snap, now, market, 'USDT')
+        pnl_btc = Decimal(tc.get_PnL(last_snap, now, market, 'BTC'))
+        pnl_usdt = Decimal(tc.get_PnL(last_snap, now, market, 'USDT'))
     except Exception as e:
         print(f'No PnL can be computed for user id {ta.user.id}.\nRoot error: {e}')
         last_snap = None
@@ -35,13 +36,21 @@ def take_snapshot(ta, market, now):
         pnl_usdt = None
 
     # save account snapshot
-    snap = SnapshotAccount(account=ta, balance_btc=balance_btc, balance_usdt=balance_usdt, 
-                            pnl_btc=pnl_btc, pnl_usdt=pnl_usdt, created_at=now, updated_at=now)
+    snap = SnapshotAccount(account=ta, 
+                           balance_btc=balance_btc, 
+                           balance_usdt=balance_usdt, 
+                           pnl_btc=pnl_btc, 
+                           pnl_usdt=pnl_usdt, 
+                           created_at=now, 
+                           updated_at=now)
     snap.save()
 
     # save account details
     for record in balance_details.itertuples():
-        details = SnapshotAccountDetails(snapshot=snap, asset=record.asset, amount=record.amount)
+        details = SnapshotAccountDetails(snapshot=snap, 
+                                         asset=record.asset, 
+                                         amount=Decimal(record.amount)
+                                        )
         details.save()
 
     return snap
@@ -59,7 +68,7 @@ def update_profile(user, markets, now):
         stats = trader.get_stats(date_from, now, base='USDT')
         first_date = stats.iloc[0]['created_at'].to_pydatetime()
         if abs(date_from - first_date) < timedelta(hours=1):
-            daily_pnl = float(stats.iloc[-1]['cum_pnl_rel'])
+            daily_pnl = Decimal(stats.iloc[-1]['cum_pnl_rel'])
         else:
             daily_pnl = None
     except Exception as e:
@@ -74,7 +83,7 @@ def update_profile(user, markets, now):
         stats = trader.get_stats(date_from, now, base='USDT')
         first_date = stats.iloc[0]['created_at'].to_pydatetime()
         if abs(date_from - first_date) < timedelta(days=1):
-            weekly_pnl = float(stats.iloc[-1]['cum_pnl_rel'])
+            weekly_pnl = Decimal(stats.iloc[-1]['cum_pnl_rel'])
         else:
             weekly_pnl = None
     except Exception as e:
@@ -89,7 +98,7 @@ def update_profile(user, markets, now):
         stats = trader.get_stats(date_from, now, base='USDT')
         first_date = stats.iloc[0]['created_at'].to_pydatetime()
         if abs(date_from - first_date) < timedelta(days=1):
-            monthly_pnl = float(stats.iloc[-1]['cum_pnl_rel'])
+            monthly_pnl = Decimal(stats.iloc[-1]['cum_pnl_rel'])
         else:
             monthly_pnl = None
     except Exception as e:
