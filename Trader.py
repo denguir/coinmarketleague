@@ -1,9 +1,9 @@
 from Market import Market
 from TradingClient import TradingClient
-from traderboard.models import TradingAccount
+from traderboard.models import TradingAccount, SnapshotAccount
 import numpy as np
 import pandas as pd
-
+import time
 
 class Trader(object):
     '''Class for every user-level aggregated functions that could be designed.'''
@@ -145,6 +145,10 @@ class Trader(object):
 
         # collect daily stats and interpolate missing values
         stats = self.get_aggregated_stats(date_from, date_to, freq='D', base=base)
+<<<<<<< HEAD
+=======
+        print(stats)
+>>>>>>> master
         # get PnL aggregated history
         cum_pnl_hist = {'labels': stats['created_at'].apply(
                                     lambda x: x.to_pydatetime().strftime('%d %b')).tolist(),

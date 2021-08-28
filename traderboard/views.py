@@ -19,7 +19,10 @@ from .tasks import load_account_history
 def home_out(request):
     '''home page for visitors'''
     order_by = request.GET.get('order_by', 'daily_pnl')
-    traders = enumerate(Profile.objects.order_by(F(order_by).desc(nulls_last=True)), start=1)
+    traders = enumerate(Profile.objects.order_by(F('daily_pnl').desc(nulls_last=True),
+                                                 F('weekly_pnl').desc(nulls_last=True),
+                                                 F('monthly_pnl').desc(nulls_last=True),   
+                                                 ), start=1)
     return render(request, 'index.html', {'traders': traders})
 
 
@@ -28,7 +31,10 @@ def home(request):
     '''home page for logged in users'''
     user = request.user
     order_by = request.GET.get('order_by', 'daily_pnl')
-    traders = enumerate(Profile.objects.order_by(F(order_by).desc(nulls_last=True)), start=1)
+    traders = enumerate(Profile.objects.order_by(F('daily_pnl').desc(nulls_last=True),
+                                                 F('weekly_pnl').desc(nulls_last=True),
+                                                 F('monthly_pnl').desc(nulls_last=True),   
+                                                 ), start=1)
     return render(request, 'index.html', {'traders': traders, 'user': user})
 
 
@@ -140,21 +146,45 @@ def edit_profile(request):
     args['user'] = user
     if request.method == 'POST':
         u_form = EditProfileForm(request.POST, instance=user)
-        p_form = EditSettingsForm(request.POST, request.FILES, instance=user.profile)
-        if u_form.is_valid() and p_form.is_valid():
+        if u_form.is_valid():
             u_form.save()
-            p_form.save()
             messages.success(request, 'Profile succesfully updated!')
         else:
+            print(u_form.errors)
             messages.error(request, 'Invalid information provided.')
 
         return redirect('edit_profile')
     else:
         u_form = EditProfileForm(instance=user)
-        p_form = EditSettingsForm(instance=user.profile)
         args['u_form'] = u_form
-        args['p_form'] = p_form
         return render(request, 'accounts/edit_profile.html', args)
+
+
+# @login_required
+# def edit_profile(request):
+#     user = User.objects.get(pk=request.user.id)
+#     args = {}
+#     args.update(csrf(request))
+#     args['user'] = user
+#     if request.method == 'POST':
+#         u_form = EditProfileForm(request.POST, instance=user)
+#         p_form = EditSettingsForm(request.POST, request.FILES, instance=user.profile)
+#         if u_form.is_valid() and p_form.is_valid():
+#             u_form.save()
+#             p_form.save()
+#             messages.success(request, 'Profile succesfully updated!')
+#         else:
+#             print(u_form.errors)
+#             print(p_form.errors)
+#             messages.error(request, 'Invalid information provided.')
+
+#         return redirect('edit_profile')
+#     else:
+#         u_form = EditProfileForm(instance=user)
+#         p_form = EditSettingsForm(instance=user.profile)
+#         args['u_form'] = u_form
+#         args['p_form'] = p_form
+#         return render(request, 'accounts/edit_profile.html', args)
 
 
 @login_required

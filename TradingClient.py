@@ -6,8 +6,8 @@ import numpy as np
 from datetime import date, datetime, timedelta, timezone
 from binance import Client, AsyncClient, BinanceSocketManager
 from Market import BinanceMarket, Market
-from django.db.models.functions import TruncDay
-from django.db.models import Max, Sum
+from django.db.models import Max, Sum, Min
+from django.db.models.functions import Trunc
 from traderboard.models import SnapshotAccount, SnapshotAccountDetails, AccountTrades, AccountTransactions
 import traderboard.async_tasks as tasks
 
@@ -39,6 +39,22 @@ class BinanceTradingClient:
         balances = balances[balances['amount'] > 0.0]
         return balances[['asset', 'amount']]
 
+    @dispatch(SnapshotAccount, SnapshotAccount, BinanceMarket, str)
+    def get_PnL(self, snap_from, snap_to, market, base='USDT'):
+        deposits = self.get_deposits_value(snap_from.created_at, snap_to.created_at, market, base)
+        withdrawals = self.get_withdrawals_value(snap_from.created_at, snap_to.created_at, market, base)
+
+        if base == 'USDT':
+            balance_from = float(snap_from.balance_usdt)
+            balance_to = float(snap_to.balance_usdt)
+        elif base == 'BTC':
+            balance_from = float(snap_from.balance_btc)   
+            balance_to = float(snap_to.balance_btc)
+
+        pnl = balance_to - balance_from - deposits + withdrawals 
+        return pnl
+
+    @dispatch(SnapshotAccount, datetime, BinanceMarket, str)
     def get_PnL(self, snap, now, market, base='USDT'):
         deposits = self.get_deposits_value(snap.created_at, now, market, base)
         withdrawals = self.get_withdrawals_value(snap.created_at, now, market, base)
@@ -51,58 +67,6 @@ class BinanceTradingClient:
 
         pnl = balance_now - balance_from - deposits + withdrawals 
         return pnl
-
-    def get_daily_balances(self, date_from, date_to, base='USDT'):
-        '''Returns a historical balance time series aggregated by day'''
-        snaps = SnapshotAccount.objects.filter(account=self.ta)\
-                                       .annotate(day=TruncDay('created_at'))\
-                                       .filter(day__range=[date_from, date_to])
-        close_time = snaps.values('day')\
-                          .annotate(close_time=Max('created_at'))\
-                          .values('close_time')
-
-        snaps = snaps.filter(created_at__in=close_time).order_by('day')
-        snaps = snaps.values('day', 'balance_btc', 'balance_usdt')
-        balance_hist = pd.DataFrame.from_records(snaps)
-        if balance_hist.empty:
-            balance_hist = pd.DataFrame(columns=['day', 'balance'])
-        else:
-            if base == 'BTC':
-                balance_hist['balance'] = balance_hist['balance_btc'].astype(float)
-            else:
-                balance_hist['balance'] = balance_hist['balance_usdt'].astype(float)
-            
-            balance_hist = balance_hist[['day', 'balance']]
-        return balance_hist
-
-    def get_daily_PnL(self, date_from, date_to, base='USDT'):
-        '''Return a historical PnL time series aggregated by day'''
-        snaps = SnapshotAccount.objects.filter(account=self.ta)\
-                                       .annotate(day=TruncDay('created_at'))\
-                                       .filter(day__range=[date_from, date_to])\
-                                       .values('day')\
-                                       .annotate(pnl_btc=Sum('pnl_btc'))\
-                                       .annotate(pnl_usdt=Sum('pnl_usdt'))\
-                                       .order_by('day')
-
-        pnl_hist = pd.DataFrame.from_records(snaps)
-        if pnl_hist.empty:
-            pnl_hist = pd.DataFrame(columns=['day', 'pnl'])
-        else:
-            if base == 'BTC':
-                pnl_hist['pnl'] = pnl_hist['pnl_btc'].astype(float)
-            else:
-                pnl_hist['pnl'] = pnl_hist['pnl_usdt'].astype(float)
-
-            pnl_hist = pnl_hist[['day', 'pnl']].fillna({'pnl': 0.0})
-        return pnl_hist
-
-    def get_daily_relative_PnL(self, date_from, date_to, base='USDT'):
-        '''Return a historical rel PnL time series aggreagated by dat.'''
-        snaps = SnapshotAccount.objects.filter(account=self.ta)\
-                                       .annotate(day=TruncDay('created_at'))\
-                                       .filter(day__range=[date_from, date_to])
-        pnl_hist = pd.DataFrame.from_records(snaps)
 
     def get_snapshot_history(self, date_from, date_to, base='USDT'):
         snaps = SnapshotAccount.objects.filter(account=self.ta)\
@@ -247,24 +211,6 @@ class BinanceTradingClient:
                                   updated_at=Market.to_datetime(order['time'])
                                 )
             trade.save()
-
-    @dispatch(datetime, datetime, BinanceMarket)
-    def get_balance_history(self, date_from, date_to, base='USDT'):
-        '''Returns a historical balance time series aggregated by day'''
-        snaps = SnapshotAccount.objects.filter(account=self.ta)\
-                                       .annotate(day=TruncDay('created_at'))\
-                                       .filter(day__range=[date_from, date_to])
-        balance_hist = pd.DataFrame.from_records(snaps)
-        if balance_hist.empty:
-            balance_hist = pd.DataFrame(columns=['created_at', 'balance_usdt', 'pnl_usdt'])
-        else:
-            if base == 'BTC':
-                balance_hist['balance'] = balance_hist['balance_btc'].astype(float)
-            else:
-                balance_hist['balance'] = balance_hist['balance_usdt'].astype(float)
-            
-            balance_hist = balance_hist[['day', 'balance']]
-        return balance_hist
 
     def get_value_table(self, balances, market, base='USDT'):
         '''Compute the value of a balances using the current market prices'''

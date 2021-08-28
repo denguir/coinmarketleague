@@ -136,12 +136,12 @@ def load_account_history(user, ta):
     '''Load past balance data at trading account registration'''
     market = Market.connect(ta.platform)
     now = datetime.now(timezone.utc)
-    today = datetime.combine(now, datetime.min.time(), timezone.utc)
+    now = datetime.combine(now, datetime.min.time(), timezone.utc)
     date_from = now - timedelta(days=30)
     tc = TradingClient.connect(ta)
     tc.load_account_history(date_from, now, market)
     take_snapshot(ta, market, now)
-    update_profile(user, None, today)
+    update_profile(user, None, now)
     print(f'Historic of account {ta.id} is loading...')
 
 
