@@ -133,11 +133,20 @@ class Trader(object):
         return order_hist.sort_values('created_at', ascending=False)
 
     def get_transaction_history(self, date_from, date_to):
-        trans_hist = pd.DataFrame(columns=['created_at', 'asset', 'amount', 'side'])
-        for tc, market in self.tcs:
-            tc_trans = tc.get_transaction_history(date_from, date_to, market)
-            trans_hist = trans_hist.append(tc_trans)
-        return trans_hist
+        trans = pd.DataFrame(columns=['created_at', 'asset', 'amount', 'side'])
+        for tc, _ in self.tcs:
+            tc_trans = tc.get_transaction_history(date_from, date_to)
+            trans = trans.append(tc_trans)
+        trans = trans.sort_values('created_at')
+        return trans
+
+    def get_trade_history(self, date_from, date_to):
+        trades = pd.DataFrame(columns=['created_at', 'symbol', 'amount', 'price', 'side'])
+        for tc, _ in self.tcs:
+            tc_trades = tc.get_trade_history(date_from, date_to)
+            trades = trades.append(tc_trades)
+        trades = trades.sort_values('created_at', ascending=False)
+        return trades
 
     def get_profile(self, date_from, date_to, base='USDT', overview=True):
         '''Process all metrics displayed in user's profile'''
@@ -145,7 +154,7 @@ class Trader(object):
 
         # collect daily stats and interpolate missing values
         stats = self.get_aggregated_stats(date_from, date_to, freq='D', base=base)
-        
+
         # get PnL aggregated history
         cum_pnl_hist = {'labels': stats['created_at'].apply(
                                     lambda x: x.to_pydatetime().strftime('%d %b')).tolist(),
@@ -158,11 +167,10 @@ class Trader(object):
                               'data': [value for value in balance_percentage.values()]}
         profile['balance_percentage'] = balance_percentage
 
-        # get order history
-        # trades_hist = self.get_order_history(date_from, date_to)
-        # trades_hist['time'] = trades_hist['created_at'].apply(lambda x: x.strftime('%d %b %Y %H:%M:%S'))
-        # trades_hist = trades_hist.to_dict('records')
-        # profile['trades_hist'] = trades_hist
+        # get trade history
+        trades_hist = self.get_trade_history(date_from, date_to)
+        trades_hist['time'] = trades_hist['created_at'].apply(lambda x: x.to_pydatetime().strftime('%d %b %Y %H:%M:%S (UTC)'))
+        profile['trades_hist'] = trades_hist.to_dict('records')
 
         profile['overview'] = overview
         # get private information
@@ -184,8 +192,7 @@ class Trader(object):
             profile['daily_pnl_hist'] = daily_pnl_hist
 
             # get transaction history
-            # trans_hist = self.get_transaction_history(date_from, date_to)
-            # trans_hist['time'] = trans_hist['created_at'].apply(lambda x: x.strftime('%d %b %Y %H:%M:%S'))
-            # trans_hist = trans_hist.to_dict('records')
-            # profile['trans_hist'] = trans_hist
+            trans_hist = self.get_transaction_history(date_from, date_to)
+            trans_hist['time'] = trans_hist['created_at'].apply(lambda x: x.to_pydatetime().strftime('%d %b %Y %H:%M:%S (UTC)'))
+            profile['trans_hist'] = trans_hist.to_dict('records')
         return profile

@@ -125,15 +125,32 @@ class BinanceTradingClient:
     @dispatch(datetime, datetime)
     def get_transaction_history(self, date_from, date_to):
         trans = AccountTransactions.objects.filter(account=self.ta)\
-                                           .annotate(day=TruncDay('created_at'))\
-                                           .filter(day__range=[date_from, date_to])\
-                                           .values('created_at', 'asset', 'amount', 'side')
+                                           .filter(created_at__range=[date_from, date_to])\
+                                           .values('created_at', 
+                                                   'asset', 
+                                                   'amount', 
+                                                   'side')
         trans_hist = pd.DataFrame.from_records(trans)
         if trans_hist.empty:
             trans_hist = pd.DataFrame(columns=['created_at', 'asset', 'amount', 'side'])
         else:
             trans_hist = trans_hist[['created_at', 'asset', 'amount', 'side']]
         return trans_hist
+
+    def get_trade_history(self, date_from, date_to):
+        trades = AccountTrades.objects.filter(account=self.ta)\
+                                      .filter(created_at__range=[date_from, date_to])\
+                                      .values('created_at', 
+                                              'symbol',
+                                              'amount',
+                                              'price',
+                                              'side')
+        trade_hist = pd.DataFrame.from_records(trades)
+        if trade_hist.empty:
+            trade_hist = pd.DataFrame(columns=['created_at', 'symbol', 'amount', 'price', 'side'])
+        else:
+            trade_hist = trade_hist[['created_at', 'symbol', 'amount', 'price', 'side']]
+        return trade_hist
 
     @dispatch(datetime, datetime, BinanceMarket)
     def get_transaction_history(self, date_from, date_to, market):
