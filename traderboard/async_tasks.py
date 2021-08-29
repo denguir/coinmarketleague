@@ -27,7 +27,7 @@ def record_transaction(event, ta):
         print('transaction recorded.')
 
     else:
-        raise Exception(f'Trading account {ta.id} has been deleted.')
+        raise Exception(f'Trading account {ta.api_key} has been deleted.')
 
 
 @sync_to_async(thread_sensitive=True)
@@ -51,4 +51,4 @@ def record_trade(event, ta):
         print('trade recorded.')
 
     else:
-        raise Exception(f'Trading account {ta.id} has been deleted.')
+        raise Exception(f'Trading account {ta.api_key} has been deleted.')

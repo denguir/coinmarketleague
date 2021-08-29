@@ -1,4 +1,5 @@
 import asyncio
+import traceback
 from multipledispatch import dispatch
 import time
 import pandas as pd
@@ -400,8 +401,8 @@ class AsyncBinanceTradingClient:
                             await tasks.record_trade(event, self.ta)
                 except Exception as e:
                     print(e)
+                    traceback.print_exc()
                     break
-        await self.close_connection()
 
     async def get_trades(self, symbol):
         ts = self.socket_manager.trade_socket(symbol)
@@ -410,9 +411,10 @@ class AsyncBinanceTradingClient:
                 try:
                     res = await tscm.recv()
                     print(f"{res['e']} by account {self.ta.id}")
-                except:
+                except Exception as e:
+                    print(e)
+                    traceback.print_exc()
                     break
-        await self.close_connection()
 
 
 class TradingClient:

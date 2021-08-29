@@ -159,6 +159,7 @@ async def get_events(ta):
         await tc.get_events()
     except:
         await tc.close_connection()
+        print('Connection {ta.api_key} closed.')
 
 
 async def get_trades(ta, symbol):
@@ -167,3 +168,4 @@ async def get_trades(ta, symbol):
         await tc.get_trades(symbol)
     except:
         await tc.close_connection()
+        print('Connection {ta.api_key} closed.')
