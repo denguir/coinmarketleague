@@ -1,8 +1,3 @@
-import os
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "coinmarketleague.settings")
-import django
-django.setup()
-
 from django.contrib.auth.models import User
 from traderboard.models import TradingAccount
 from Market import Market
@@ -13,7 +8,7 @@ from traderboard.tasks import take_snapshot, update_profile
 __PLATFORMS__ = ['Binance']
 
 
-if __name__ == '__main__':
+def run():
     # Take time snapshot of market state
     now = datetime.now(timezone.utc)
     markets = {platform : Market.connect(platform) for platform in __PLATFORMS__}
@@ -26,9 +21,7 @@ if __name__ == '__main__':
             try:
                 take_snapshot(ta, markets[ta.platform], now)
             except Exception as e:
-                print(f"Error processing {ta.id}.")
+                print(f"Error during snapshot of {ta.user.username} - account {ta.id}.")
                 print(e)
-            # async_task(update_order_history, (ta, now, markets[ta.platform]), ack_failure=True)
-            # async_task(update_transaction_history, ta, now, markets[ta.platform], timeout=120, ack_failure=True)
         # Collect user level data
         update_profile(user, markets, now)

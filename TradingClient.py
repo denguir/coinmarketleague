@@ -392,6 +392,8 @@ class AsyncBinanceTradingClient:
                     event = await uscm.recv()
                     # put task in celery queue
                     if event:
+                        print(f'Trade by {self.ta.user.username}')
+                        print(event)
                         if event['e'] == "balanceUpdate":
                             await tasks.record_transaction(event, self.ta)
                         elif event['e'] == "executionReport" and event["x"] == "TRADE":
