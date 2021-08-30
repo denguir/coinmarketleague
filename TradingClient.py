@@ -393,7 +393,6 @@ class AsyncBinanceTradingClient:
                     event = await uscm.recv()
                     # put task in celery queue
                     if event:
-                        print(f'Trade by {self.ta.user.username}')
                         print(event)
                         if event['e'] == "balanceUpdate":
                             await tasks.record_transaction(event, self.ta)
@@ -410,7 +409,6 @@ class AsyncBinanceTradingClient:
             while True:
                 try:
                     res = await tscm.recv()
-                    print(f"{res['e']} by account {self.ta.id}")
                 except Exception as e:
                     print(e)
                     traceback.print_exc()
