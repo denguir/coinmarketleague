@@ -26,7 +26,7 @@ def print_stream_buffer_data(binance_websocket_api_manager, stream_id):
             event = json.loads(oldest_stream_data_from_stream_buffer)
             if event['e'] == 'balanceUpdate':
                 record_transaction(event, ta_id)
-            elif event['e'] == "executionReport" and event['X'] == "TRADE":
+            elif event['e'] == "executionReport" and event['x'] == "TRADE":
                 record_trade(event, ta_id)
             print(oldest_stream_data_from_stream_buffer)
 
