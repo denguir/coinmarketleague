@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.DEBUG,
                     style="{")
 
 
-def print_stream_buffer_data(binance_websocket_api_manager, stream_id):
+def record_stream_data(binance_websocket_api_manager, stream_id):
     while True:
         if binance_websocket_api_manager.is_manager_stopping():
             exit(0)
@@ -61,7 +61,7 @@ def update_streams(binance_websocket_api_manager):
                                                                     api_key=ta.api_key, 
                                                                     api_secret=ta.api_secret)
         # start a worker process to move the received stream_data from the stream_buffer to a print function
-        worker_thread = threading.Thread(target=print_stream_buffer_data, args=(binance_websocket_api_manager,
+        worker_thread = threading.Thread(target=record_stream_data, args=(binance_websocket_api_manager,
                                                                                 ta_stream_id))
         worker_thread.start()
 
