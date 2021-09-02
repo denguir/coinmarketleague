@@ -1,43 +1,76 @@
-import time
-import asyncio
-from django.contrib.auth.models import User
+from unicorn_binance_websocket_api.unicorn_binance_websocket_api_manager import BinanceWebSocketApiManager
 from traderboard.models import TradingAccount
-from Market import Market
-from datetime import datetime, timezone
-from traderboard.tasks import get_events, get_trades
-from asgiref.sync import sync_to_async
-from contextlib import suppress
+from traderboard.tasks import record_trade, record_transaction
+import logging
+import time
+import threading
+import json
+import os
 
 
-__PLATFORMS__ = ['Binance']
+logging.basicConfig(level=logging.DEBUG,
+                    filename=os.path.basename(__file__) + '.log',
+                    format="{asctime} [{levelname:8}] {process} {thread} {module}: {message}",
+                    style="{")
 
 
-@sync_to_async(thread_sensitive=True)
-def get_trading_accounts():
-    tas_qs = TradingAccount.objects.all()
-    tas = {}
-    for ta in tas_qs:
-        tas[ta.api_key] = ta
-    return tas
-
-
-async def update_tasks(loop):
+def print_stream_buffer_data(binance_websocket_api_manager, stream_id):
     while True:
-        tas = await get_trading_accounts()
-        tasks = {task.get_name(): task for task in asyncio.all_tasks(loop=loop)}
-        tasks_to_create = set(tas.keys()) - set(tasks.keys())
+        if binance_websocket_api_manager.is_manager_stopping():
+            exit(0)
+        oldest_stream_data_from_stream_buffer = binance_websocket_api_manager.pop_stream_data_from_stream_buffer(stream_id)
+        if oldest_stream_data_from_stream_buffer is False:
+            time.sleep(0.01)
+        else:
+            ta_id = int(binance_websocket_api_manager.get_stream_label(stream_id))
+            event = json.loads(oldest_stream_data_from_stream_buffer)
+            if event['e'] == 'balanceUpdate':
+                record_transaction(event, ta_id)
+            elif event['e'] == "executionReport" and event['X'] == "TRADE":
+                record_trade(event, ta_id)
+            print(oldest_stream_data_from_stream_buffer)
 
-        for task_id in tasks_to_create:
-            ta = tas[task_id]
-            loop.create_task(get_events(ta), name=task_id)
-            print(f'task {task_id} successfully created.')
-        
-        await asyncio.sleep(10)
+
+def update_streams(binance_websocket_api_manager):
+    ta_labels = set([str(ta.id) for ta in TradingAccount.objects.all()])
+    active_streams = binance_websocket_api_manager.get_active_stream_list()
+    if active_streams:
+        active_stream_labels = set([active_streams[stream_id]['stream_label'] for stream_id in active_streams.keys()])
+        streams_to_delete = map(lambda x: x['stream_id'], 
+                                filter(lambda x: x['stream_label'] in set(active_stream_labels - ta_labels), 
+                                    active_streams.values()
+                                )
+                            )
+        streams_to_create = ta_labels - active_stream_labels 
+
+    else:
+        streams_to_delete = set([])
+        streams_to_create = ta_labels
+
+    for stream_id in streams_to_delete:
+        # delete the userData streams
+        binance_websocket_api_manager.delete_stream_from_stream_list(stream_id)
+
+    for stream_label in streams_to_create:
+        # create the userData streams
+        ta = TradingAccount.objects.get(id=stream_label)
+        ta_stream_id = binance_websocket_api_manager.create_stream('arr', 
+                                                                   '!userData', 
+                                                                    stream_label=str(ta.id),
+                                                                    stream_buffer_name=True,
+                                                                    api_key=ta.api_key, 
+                                                                    api_secret=ta.api_secret)
+        # start a worker process to move the received stream_data from the stream_buffer to a print function
+        worker_thread = threading.Thread(target=print_stream_buffer_data, args=(binance_websocket_api_manager,
+                                                                                ta_stream_id))
+        worker_thread.start()
 
 
 def run():
-    loop = asyncio.get_event_loop()
-    loop.create_task(update_tasks(loop), name='main')
-    loop.run_forever()
+    # create instances of BinanceWebSocketApiManager
+    binance_com_websocket_api_manager = BinanceWebSocketApiManager(exchange="binance.com")
 
-
+    while True:
+        update_streams(binance_com_websocket_api_manager)
+        binance_com_websocket_api_manager.print_summary()
+        time.sleep(10)

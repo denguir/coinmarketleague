@@ -3,7 +3,7 @@ import asyncio
 from Trader import Trader
 from TradingClient import TradingClient, AsyncTradingClient
 from Market import Market
-from traderboard.models import SnapshotAccount, SnapshotAccountDetails, AccountTrades, AccountTransactions
+from traderboard.models import TradingAccount, SnapshotAccount, SnapshotAccountDetails, AccountTrades, AccountTransactions
 from Trader import Trader
 from datetime import datetime, timedelta, timezone
 from django.contrib.auth.models import User
@@ -169,3 +169,48 @@ async def get_trades(ta, symbol):
     except:
         await tc.close_connection()
         print('Connection {ta.api_key} closed.')
+
+
+def record_transaction(event, ta_id):
+    ta = TradingAccount.objects.get(id=ta_id)
+    if ta:
+        asset = event['a']
+        amount = Decimal(event['d'])
+        side = 'DEPOSIT' if amount >= 0 else 'WITHDRAWAL'
+        date = Market.to_datetime(event['E'])
+        trans = AccountTransactions(account=ta,
+                                    created_at=date,
+                                    updated_at=date,
+                                    asset=asset,
+                                    amount=abs(amount),
+                                    side=side
+                                    )
+        trans.save()
+        print(f'Transaction of account {ta_id} recorded.')
+
+    else:
+        raise Exception(f'Trading account {ta_id} does not exist.')
+
+
+def record_trade(event, ta_id):
+    ta = TradingAccount.objects.get(id=ta_id)
+    if ta:
+        symbol = event['s']
+        side = event['S']
+        quantity = Decimal(event['q'])
+        price = Decimal(event['p'])
+        date = Market.to_datetime(event['E'])
+
+        trade = AccountTrades(account=ta,
+                            created_at=date,
+                            updated_at=date,
+                            symbol=symbol,
+                            amount=quantity,
+                            price=price,
+                            side=side,
+                            )
+        trade.save()
+        print(f'Trade of account {ta_id} recorded.')
+
+    else:
+        raise Exception(f'Trading account {ta_id} does not exist.')

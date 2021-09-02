@@ -5,3 +5,4 @@ media
 *.pyc
 .env.dev
 .env.prod
+*.log
