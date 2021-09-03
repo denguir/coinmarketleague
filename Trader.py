@@ -170,6 +170,8 @@ class Trader(object):
         # get trade history
         trades_hist = self.get_trade_history(date_from, date_to)
         trades_hist['time'] = trades_hist['created_at'].apply(lambda x: x.to_pydatetime().strftime('%d %b %Y %H:%M:%S (UTC)'))
+        trades_hist['amount'] = trades_hist['amount'].apply(lambda x: x.normalize())
+        trades_hist['price'] = trades_hist['price'].apply(lambda x: x.normalize())
         profile['trades_hist'] = trades_hist.to_dict('records')
 
         profile['overview'] = overview
@@ -194,5 +196,6 @@ class Trader(object):
             # get transaction history
             trans_hist = self.get_transaction_history(date_from, date_to)
             trans_hist['time'] = trans_hist['created_at'].apply(lambda x: x.to_pydatetime().strftime('%d %b %Y %H:%M:%S (UTC)'))
+            trans_hist['amount'] = trans_hist['amount'].apply(lambda x: x.normalize())
             profile['trans_hist'] = trans_hist.to_dict('records')
         return profile
