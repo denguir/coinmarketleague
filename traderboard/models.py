@@ -40,10 +40,10 @@ class SnapshotAccount(models.Model):
     created_at = models.DateTimeField()
     updated_at = models.DateTimeField()
     # balance value
-    balance_btc = models.DecimalField(max_digits=30, decimal_places=8, default=None, null=True)
+    balance_btc = models.DecimalField(max_digits=30, decimal_places=10, default=None, null=True)
     balance_usdt = models.DecimalField(max_digits=30, decimal_places=2)
     # absolute PnL wrt last snapshot
-    pnl_btc =  models.DecimalField(max_digits=30, decimal_places=8, default=None, null=True)
+    pnl_btc =  models.DecimalField(max_digits=30, decimal_places=10, default=None, null=True)
     pnl_usdt =  models.DecimalField(max_digits=30, decimal_places=2, default=None, null=True)
 
 
@@ -52,7 +52,7 @@ class SnapshotAccountDetails(models.Model):
     available at snapshot time''' 
     snapshot = models.ForeignKey(SnapshotAccount, on_delete=models.CASCADE)
     asset = models.CharField(max_length=10)
-    amount = models.DecimalField(max_digits=30, decimal_places=8)
+    amount = models.DecimalField(max_digits=30, decimal_places=10)
 
 
 class AccountTrades(models.Model):
@@ -61,8 +61,8 @@ class AccountTrades(models.Model):
     created_at = models.DateTimeField()
     updated_at = models.DateTimeField()
     symbol = models.CharField(max_length=20, default='Unknown')
-    amount = models.DecimalField(max_digits=30, decimal_places=8)
-    price = models.DecimalField(max_digits=30, decimal_places=8)
+    amount = models.DecimalField(max_digits=30, decimal_places=10)
+    price = models.DecimalField(max_digits=30, decimal_places=10)
     side = models.CharField(max_length=10)
 
 
@@ -72,7 +72,7 @@ class AccountTransactions(models.Model):
     created_at = models.DateTimeField()
     updated_at = models.DateTimeField()
     asset = models.CharField(max_length=10)
-    amount = models.DecimalField(max_digits=30, decimal_places=8)
+    amount = models.DecimalField(max_digits=30, decimal_places=10)
     side = models.CharField(max_length=10)
 
 

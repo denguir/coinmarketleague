@@ -150,7 +150,7 @@ def load_account_history(user, ta):
     tc.load_account_history(date_from, now, market)
     take_snapshot(ta, market, now)
     update_profile(user, None, now)
-    print(f'Historic of account {ta.id} is loading...')
+    print(f'Historic of account {ta.id} loaded succesfully.')
 
 
 async def get_events(ta):
