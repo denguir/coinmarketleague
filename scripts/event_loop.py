@@ -8,12 +8,6 @@ import json
 import os
 
 
-logging.basicConfig(level=logging.DEBUG,
-                    filename=os.path.basename(__file__) + '.log',
-                    format="{asctime} [{levelname:8}] {process} {thread} {module}: {message}",
-                    style="{")
-
-
 def record_stream_data(binance_websocket_api_manager, stream_id):
     while True:
         if binance_websocket_api_manager.is_manager_stopping():
@@ -69,8 +63,14 @@ def update_streams(binance_websocket_api_manager):
 def run():
     # create instances of BinanceWebSocketApiManager
     binance_com_websocket_api_manager = BinanceWebSocketApiManager(exchange="binance.com")
-
+    counter = 0
+    period = 10
+    
     while True:
         update_streams(binance_com_websocket_api_manager)
-        #binance_com_websocket_api_manager.print_summary()
-        time.sleep(10)
+        time.sleep(period)
+        counter += period
+
+        if counter % 3600 == 0:
+            binance_com_websocket_api_manager.print_summary()
+            counter = 0

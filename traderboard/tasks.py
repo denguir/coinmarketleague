@@ -195,11 +195,17 @@ def record_transaction(event, ta_id):
 def record_trade(event, ta_id):
     ta = TradingAccount.objects.get(id=ta_id)
     if ta:
+        date = Market.to_datetime(event['E'])
         symbol = event['s']
         side = event['S']
         quantity = Decimal(event['q'])
         price = Decimal(event['p'])
-        date = Market.to_datetime(event['E'])
+        # get average order price if price not available
+        if price == 0:
+            try:
+                price = Decimal(event['Z']) / Decimal(event['z'])
+            except ZeroDivisionError:
+                price = Decimal(0)
 
         trade = AccountTrades(account=ta,
                             created_at=date,
