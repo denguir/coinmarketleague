@@ -11,10 +11,145 @@ from Market import BinanceMarket, Market
 from django.db.models import Max, Sum, Min
 from django.db.models.functions import Trunc
 from traderboard.models import SnapshotAccount, SnapshotAccountDetails, AccountTrades, AccountTransactions
-import traderboard.async_tasks as tasks
 
 
 __PLATFORMS__ = ['Binance']
+
+
+class BaseTradingClient:
+    '''Provide with all the methods exclusively querying the local database.
+       A TradingClient should extend this class to get access to localy stored data.'''
+
+    def __init__(self, ta):
+        self.ta = ta
+    
+    def get_snapshot_history(self, date_from, date_to, base='USDT'):
+        snaps = SnapshotAccount.objects.filter(account=self.ta)\
+                                       .filter(created_at__range=[date_from, date_to])\
+                                       .values('created_at', 
+                                               'pnl_usdt', 
+                                               'pnl_btc', 
+                                               'balance_usdt', 
+                                               'balance_btc')
+        snaps = pd.DataFrame.from_records(snaps)
+        if snaps.empty:
+            snaps = pd.DataFrame(columns=['created_at', 'pnl', 'balance'])
+        else:
+            if base == 'BTC':
+                snaps['pnl'] = snaps['pnl_btc']
+                snaps['balance'] = snaps['balance_btc']
+            else:
+                snaps['pnl'] = snaps['pnl_usdt']
+                snaps['balance'] = snaps['balance_usdt']
+
+            snaps = snaps[['created_at', 'pnl', 'balance']]
+        return snaps
+
+    def get_transaction_history(self, date_from, date_to):
+        trans = AccountTransactions.objects.filter(account=self.ta)\
+                                           .filter(created_at__range=[date_from, date_to])\
+                                           .values('created_at', 
+                                                   'asset', 
+                                                   'amount', 
+                                                   'side')
+        trans_hist = pd.DataFrame.from_records(trans)
+        if trans_hist.empty:
+            trans_hist = pd.DataFrame(columns=['created_at', 'asset', 'amount', 'side'])
+        else:
+            trans_hist = trans_hist[['created_at', 'asset', 'amount', 'side']]
+        return trans_hist
+
+    def get_deposit_history(self, date_from, date_to):
+        trans_hist = self.get_transaction_history(date_from, date_to)
+        dep_hist = trans_hist[trans_hist['side'] == 'DEPOSIT']
+        return dep_hist
+
+    def get_withdrawal_history(self, date_from, date_to):
+        trans_hist = self.get_transaction_history(date_from, date_to)
+        wit_hist = trans_hist[trans_hist['side'] == 'WITHDRAWAL']
+        return wit_hist
+
+    def get_trade_history(self, date_from, date_to):
+        trades = AccountTrades.objects.filter(account=self.ta)\
+                                      .filter(created_at__range=[date_from, date_to])\
+                                      .values('created_at', 
+                                              'symbol',
+                                              'amount',
+                                              'price',
+                                              'side')
+        trade_hist = pd.DataFrame.from_records(trades)
+        if trade_hist.empty:
+            trade_hist = pd.DataFrame(columns=['created_at', 'symbol', 'amount', 'price', 'side'])
+        else:
+            trade_hist = trade_hist[['created_at', 'symbol', 'amount', 'price', 'side']]
+        return trade_hist
+
+
+class BinanceTradingClient2(BaseTradingClient):
+    '''Client for Binance trading account.'''
+
+    def __init__(self, ta):
+        super(BinanceTradingClient2, self).__init__(ta)
+        self.api_key = self.ta.api_key
+        self.api_secret = self.ta.api_secret
+    
+    @classmethod
+    def connect(cls, ta):
+        self = cls(ta)
+        self.client = Client(self.api_key, self.api_secret)
+        return self
+
+    def get_balances(self):
+        '''Get current balances of SPOT account.'''
+        info = self.client.get_account()
+        balances = pd.DataFrame(info['balances'])
+        balances['amount'] = balances['free'].astype(float) + balances['locked'].astype(float)
+        balances = balances[balances['amount'] > 0.0]
+        return balances[['asset', 'amount']]
+
+    def get_value_table(self, balances, market, base='USDT'):
+        '''Compute the value of a balances using the current market prices.'''
+        balances['base'] = base
+        balances['price'] = balances.apply(lambda x: market.get_price(x['asset'], x['base']), axis=1)
+        balances['value'] = balances['amount'] * balances['price']
+        return balances
+
+    def get_value(self, balances, market, base='USDT'):
+        '''Return the total value of <balances> in <base> units'''
+        if balances.empty:
+            value = 0.0
+        else:
+            mkt = self.get_value_table(balances, market, base)
+            value = sum(mkt['value'])
+        return value
+
+    def get_balances_value(self, market, base='USDT'):
+        balances = self.get_balances()
+        return self.get_value(balances, market, base)
+
+    def get_deposits_value(self, date_from, date_to, market, base='USDT'):
+        '''To be used only when date_from and date_to are close'''
+        deposits = self.get_deposit_history(date_from, date_to)
+        return self.get_value(deposits, market, base)
+
+    def get_withdrawals_value(self, date_from, date_to, market, base='USDT'):
+        '''To be used only when date_from and date_to are close'''
+        withdrawals = self.get_withdrawal_history(date_from, date_to)
+        return self.get_value(withdrawals, market, base)
+
+    def get_pnl(self, snap, now, market, base='USDT'):
+        '''Compute PnL since snap until now. Only valid for small time intervals.'''
+        deposits = self.get_deposits_value(snap.created_at, now, market, base)
+        withdrawals = self.get_withdrawals_value(snap.created_at, now, market, base)
+        balance_now = self.get_balances_value(market, base)
+
+        if base == 'USDT':
+            balance_from = float(snap.balance_usdt)
+        elif base == 'BTC':
+            balance_from = float(snap.balance_btc)
+
+        pnl = balance_now - balance_from - deposits + withdrawals 
+        return pnl
 
 
 class BinanceTradingClient:
@@ -395,9 +530,9 @@ class AsyncBinanceTradingClient:
                     if event:
                         print(event)
                         if event['e'] == "balanceUpdate":
-                            await tasks.record_transaction(event, self.ta)
+                            await tasks.record_transaction(event, self.ta.id)
                         elif event['e'] == "executionReport" and event["x"] == "TRADE":
-                            await tasks.record_trade(event, self.ta)
+                            await tasks.record_trade(event, self.ta.id)
                 except Exception as e:
                     print(e)
                     traceback.print_exc()

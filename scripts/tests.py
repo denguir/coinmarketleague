@@ -73,7 +73,6 @@ def run():
     while True:
         update_streams(binance_com_websocket_api_manager)
         binance_com_websocket_api_manager.print_summary()
-
         time.sleep(10)
 
 

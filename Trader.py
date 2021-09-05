@@ -137,7 +137,7 @@ class Trader(object):
         for tc, _ in self.tcs:
             tc_trans = tc.get_transaction_history(date_from, date_to)
             trans = trans.append(tc_trans)
-        trans = trans.sort_values('created_at')
+        trans = trans.sort_values('created_at', ascending=False)
         return trans
 
     def get_trade_history(self, date_from, date_to):
