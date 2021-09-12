@@ -3,7 +3,7 @@ from TradingClient import TradingClient
 from traderboard.models import TradingAccount, SnapshotAccount
 import numpy as np
 import pandas as pd
-import time
+
 
 class Trader(object):
     '''Class for every user-level aggregated functions that could be designed.'''
@@ -60,30 +60,8 @@ class Trader(object):
     def get_deposits_value(self, date_from, date_to, base='USDT'):
         return sum(tc.get_deposits_value(date_from, date_to, market, base) for tc, market in self.tcs)
 
-    def get_daily_deposits_value(self, date_from, date_to, base='USDT'):
-        deposits = {}
-        for tc, market in self.tcs:
-            tc_dep = tc.get_daily_deposits_value(date_from, date_to, market, base)
-            for date, value in tc_dep.items():
-                if date in deposits.keys():
-                    deposits[date] += value
-                else:
-                    deposits[date] = value
-        return deposits
-
     def get_withdrawals_value(self, date_from, date_to, base='USDT'):
         return sum(tc.get_withdrawals_value(date_from, date_to, market, base) for tc, market in self.tcs)
-
-    def get_daily_withdrawals_value(self, date_from, date_to, base='USDT'):
-        withdrawals = {}
-        for tc, market in self.tcs:
-            tc_wit = tc.get_daily_withdrawals_value(date_from, date_to, market, base)
-            for date, value in tc_wit.items():
-                if date in withdrawals.keys():
-                    withdrawals[date] += value
-                else:
-                    withdrawals[date] = value
-        return withdrawals
 
     def get_snapshot_history(self, date_from, date_to, base='USDT'):
         snaps = pd.DataFrame(columns=['created_at', 'pnl', 'balance'])
@@ -97,10 +75,15 @@ class Trader(object):
 
     def get_stats(self, date_from, date_to, base='USDT'):
         snaps = self.get_snapshot_history(date_from, date_to, base)
-        snaps['balance_open'] = snaps['balance'].shift(1)
-        snaps['pnl_rel'] = snaps['pnl'] / snaps['balance_open']
-        snaps['cum_pnl'] = snaps['pnl'].cumsum()
-        snaps['cum_pnl_rel'] = np.around(100 * snaps['cum_pnl'] / snaps.iloc[0].balance, 2)
+        if not snaps.empty:
+            snaps['balance_open'] = snaps['balance'].shift(1)
+            snaps['pnl_rel'] = snaps['pnl'] / snaps['balance_open']
+            snaps['cum_pnl'] = snaps['pnl'].cumsum()
+            snaps['cum_pnl_rel'] = np.around(100 * snaps['cum_pnl'] / snaps.iloc[0].balance, 2)
+        else:
+            snaps = pd.DataFrame(columns=['created_at', 'pnl', 'balance', 
+                                          'balance_open', 'pnl_rel',
+                                          'cum_pnl', 'cum_pnl_rel'])
         return snaps
 
     def get_aggregated_stats(self, date_from, date_to, freq, base='USDT'):
@@ -108,21 +91,25 @@ class Trader(object):
            see: https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases
         '''
         snaps = self.get_snapshot_history(date_from, date_to, base)
-        snaps['balance_open'] = snaps['balance'].shift(1)
-        snaps = snaps.groupby(pd.Grouper(key='created_at',freq=freq))\
-                      .agg({'pnl': 'sum',
-                            'balance': 'last',
-                            'balance_open': 'first'
-                            })\
-                      .reset_index()\
-                      .sort_values('created_at')
-        # remove nan introduced by groupby
-        snaps = snaps[snaps['balance'].notna()]
-        snaps['balance_open'] = snaps['balance_open'].fillna(snaps['balance'])
-
-        snaps['pnl_rel'] = snaps['pnl'] / snaps['balance_open']
-        snaps['cum_pnl'] = snaps['pnl'].cumsum()
-        snaps['cum_pnl_rel'] = np.around(100 * snaps['cum_pnl'] / snaps.iloc[0].balance_open, 2)
+        if not snaps.empty:
+            snaps['balance_open'] = snaps['balance'].shift(1)
+            snaps = snaps.groupby(pd.Grouper(key='created_at',freq=freq))\
+                        .agg({'pnl': 'sum',
+                                'balance': 'last',
+                                'balance_open': 'first'
+                                })\
+                        .reset_index()\
+                        .sort_values('created_at')
+            # remove nan introduced by groupby
+            snaps = snaps[snaps['balance'].notna()]
+            snaps['balance_open'] = snaps['balance_open'].fillna(snaps['balance'])
+            snaps['pnl_rel'] = snaps['pnl'] / snaps['balance_open']
+            snaps['cum_pnl'] = snaps['pnl'].cumsum()
+            snaps['cum_pnl_rel'] = np.around(100 * snaps['cum_pnl'] / snaps.iloc[0].balance_open, 2)
+        else:
+            snaps = pd.DataFrame(columns=['created_at', 'pnl', 'balance', 
+                                          'balance_open', 'pnl_rel',
+                                          'cum_pnl', 'cum_pnl_rel'])
         return snaps
     
     def get_order_history(self, date_from, date_to):
@@ -198,4 +185,5 @@ class Trader(object):
             trans_hist['time'] = trans_hist['created_at'].apply(lambda x: x.to_pydatetime().strftime('%d %b %Y %H:%M:%S (UTC)'))
             trans_hist['amount'] = trans_hist['amount'].apply(lambda x: x.normalize())
             profile['trans_hist'] = trans_hist.to_dict('records')
+
         return profile

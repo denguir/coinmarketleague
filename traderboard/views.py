@@ -57,10 +57,10 @@ def register(request):
 @login_required
 def show_profile(request):
     user = User.objects.get(pk=request.user.id)
-    req_profile = Profile.objects.get(user=user)
+    nacc_user = len(TradingAccount.objects.filter(user=user))
     trader = Trader(user)
     if request.method == 'GET':
-        if req_profile.nacc > 0:
+        if nacc_user > 0:
             form = ProfileFilterForm(request.GET)
             if form.is_valid():
                 profile = trader.get_profile(form.cleaned_data['date_from'], 
@@ -73,6 +73,7 @@ def show_profile(request):
                 date_from = datetime.combine(now - timedelta(days=7), datetime.min.time(), timezone.utc)
                 date_to = datetime.combine(now, datetime.max.time(), timezone.utc)
                 profile = trader.get_profile(date_from, date_to, 'USDT', False)
+             
         else:
             profile = {'overview': False, 'trader': user}
             messages.info(request, 'You have no trading account linked to your profile.\n\
@@ -86,8 +87,10 @@ def show_overview_profile(request, pk=None):
     user = get_object_or_404(User, pk=pk)
     trader = Trader(user)
     req_profile = Profile.objects.get(user=request.user)
+    nacc_req_user = len(TradingAccount.objects.filter(user=request.user))
+    nacc_user = len(TradingAccount.objects.filter(user=user))
     if request.method == 'GET':
-        if req_profile.nacc > 0 and user.profile.nacc > 0:
+        if nacc_req_user > 0 and nacc_user > 0:
             form = ProfileFilterForm(request.GET)
             if form.is_valid():
                 profile = trader.get_profile(form.cleaned_data['date_from'], 
@@ -102,7 +105,7 @@ def show_overview_profile(request, pk=None):
                 profile = trader.get_profile(date_from, date_to, 'USDT', not user.profile.public)
         else:
             profile = {'overview': True, 'trader': user}
-            if req_profile.nacc:
+            if nacc_req_user:
                 messages.info(request, 'This trading account is empty.')                
                             
             else:         
@@ -230,8 +233,7 @@ def add_trading_account(request):
             messages.success(request, 'Trading account added successfully!')
             # load past data when adding a trading account
             try:
-                load_account_history(user, ta)
-                profile.update(nacc=F('nacc')+1)
+                load_account_history(user.id, ta.id)
                 messages.success(request, 'Account synchronization success!')
             except Exception as e:
                 print(e)
@@ -253,7 +255,6 @@ def remove_trading_account(request, pk=None):
     profile = Profile.objects.filter(user=request.user)
     if ta:
         ta.delete()
-        profile.update(nacc=F('nacc')-1)
         messages.success(request, 'Trading account succesfully removed.')
     return redirect('trading_accounts')
 

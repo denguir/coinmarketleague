@@ -117,7 +117,8 @@ class AddTradingAccountForm(forms.ModelForm):
         api_secret = self.cleaned_data.get('api_secret', '')
         platform = self.cleaned_data.get('platform', '')
 
-        if api_key and TradingAccount.objects.filter(platform__iexact=platform).filter(api_key__iexact=api_key).exists():
+        if api_key and TradingAccount.objects.filter(platform__iexact=platform)\
+                                             .filter(api_key__iexact=api_key).exists():
             raise forms.ValidationError(u'This trading account is already linked to a user.')
         
         # check if api key, secret pair is valid 

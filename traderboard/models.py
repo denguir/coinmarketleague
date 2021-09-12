@@ -15,9 +15,6 @@ class Profile(models.Model):
     daily_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
     weekly_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
     monthly_pnl = models.DecimalField(max_digits=9, decimal_places=2, default=None, null=True)
-
-    # number of trading accounts linked to user 
-    nacc = models.IntegerField(default=0)
     
 
 class TradingAccount(models.Model):
@@ -26,12 +23,18 @@ class TradingAccount(models.Model):
         BINANCE = 'Binance'
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
     platform = models.CharField(max_length=100,
                                 choices=TradingPlatform.choices,
                                 default=TradingPlatform.BINANCE)
 
     api_key = models.CharField(max_length=64, default='')
     api_secret = fields.EncryptedCharField(max_length=64, default='')
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['api_key', 'platform'], name='No api_key duplicate')
+        ]
 
 
 class SnapshotAccount(models.Model):
@@ -46,6 +49,11 @@ class SnapshotAccount(models.Model):
     pnl_btc =  models.DecimalField(max_digits=30, decimal_places=10, default=None, null=True)
     pnl_usdt =  models.DecimalField(max_digits=30, decimal_places=2, default=None, null=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['account', 'created_at'], name='No snapshot duplicate')
+        ]
+
 
 class SnapshotAccountDetails(models.Model):
     '''Details of SnapshotAccount containing, the asset, amount pairs
@@ -53,6 +61,11 @@ class SnapshotAccountDetails(models.Model):
     snapshot = models.ForeignKey(SnapshotAccount, on_delete=models.CASCADE)
     asset = models.CharField(max_length=10)
     amount = models.DecimalField(max_digits=30, decimal_places=10)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['snapshot', 'asset'], name='No detail duplicate')
+        ]
 
 
 class AccountTrades(models.Model):
@@ -74,6 +87,12 @@ class AccountTransactions(models.Model):
     asset = models.CharField(max_length=10)
     amount = models.DecimalField(max_digits=30, decimal_places=10)
     side = models.CharField(max_length=10)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['account', 'created_at', 'asset', 'amount', 'side'], 
+                                    name='No transaction duplicate')
+        ]
 
 
 @receiver(post_save, sender=User)
