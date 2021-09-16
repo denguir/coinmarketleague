@@ -33,7 +33,8 @@ class TradingAccount(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['api_key', 'platform'], name='No api_key duplicate')
+            models.UniqueConstraint(fields=['api_key', 'platform'],     
+                                    name='No api_key duplicate')
         ]
 
 
@@ -51,7 +52,8 @@ class SnapshotAccount(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['account', 'created_at'], name='No snapshot duplicate')
+            models.UniqueConstraint(fields=['account', 'created_at'], 
+                                    name='No snapshot duplicate')
         ]
 
 
@@ -64,7 +66,8 @@ class SnapshotAccountDetails(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['snapshot', 'asset'], name='No detail duplicate')
+            models.UniqueConstraint(fields=['snapshot', 'asset'], 
+                                    name='No detail duplicate')
         ]
 
 

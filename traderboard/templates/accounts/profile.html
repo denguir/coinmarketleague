@@ -403,19 +403,19 @@
         data: {
             labels: labels,
             datasets: [{
-            label: "Balance",
-            lineTension: 0.3,
-            backgroundColor: "rgba(78, 115, 223, 0.05)",
-            borderColor: "rgba(78, 115, 223, 1)",
-            pointRadius: 3,
-            pointBackgroundColor: "rgba(78, 115, 223, 1)",
-            pointBorderColor: "rgba(78, 115, 223, 1)",
-            pointHoverRadius: 3,
-            pointHoverBackgroundColor: "rgba(78, 115, 223, 1)",
-            pointHoverBorderColor: "rgba(78, 115, 223, 1)",
-            pointHitRadius: 10,
-            pointBorderWidth: 2,
-            data: data,
+                label: "Balance",
+                lineTension: 0.3,
+                backgroundColor: "rgba(78, 115, 223, 0.05)",
+                borderColor: "rgba(78, 115, 223, 1)",
+                pointRadius: 3,
+                pointBackgroundColor: "rgba(78, 115, 223, 1)",
+                pointBorderColor: "rgba(78, 115, 223, 1)",
+                pointHoverRadius: 3,
+                pointHoverBackgroundColor: "rgba(78, 115, 223, 1)",
+                pointHoverBorderColor: "rgba(78, 115, 223, 1)",
+                pointHitRadius: 10,
+                pointBorderWidth: 2,
+                data: data,
             }],
         },
         options: {
@@ -575,6 +575,7 @@
 
 {{ daily_pnl_hist|json_script:"daily_pnl_hist" }}
 <script type="text/javascript">
+
     function round1000(x){
         if (x > 0) {
             return Math.ceil(x/1000)*1000;
@@ -582,20 +583,21 @@
             return Math.floor(x/1000)*1000;
         } 
     }
-    
+
     var ctx = document.getElementById("dailyPnLChart");
     var labels = JSON.parse(document.getElementById('daily_pnl_hist').textContent).labels;
     var data = JSON.parse(document.getElementById('daily_pnl_hist').textContent).data;
+
     var pnlChart = new Chart(ctx, {
     type: 'bar',
     data: {
         labels: labels,
         datasets: [{
-        label: "PnL",
-        backgroundColor: "#4e73df",
-        hoverBackgroundColor: "#2e59d9",
-        borderColor: "#4e73df",
-        data: data,
+            label: "PnL",
+            data: data,
+            backgroundColor: "#4e73df",
+            borderColor: "#2e59d9",
+            hoverBackgroundColor: "#4e73df",
         }],
     },
     options: {
