@@ -72,48 +72,47 @@ def update_profile(user, markets, now):
     '''Update account level user stats'''
     trader = Trader(user, markets)
 
-    # Get pnL data wrt begining of the day (midnight)
+    # Get pnL data wrt to 24h record
     try:
-        date_from = now.replace(microsecond=0, second=0, minute=0, hour=0)
+        date_from = now - timedelta(days=1)
+        date_from = date_from.replace(microsecond=0, second=0, minute=0)
+
         stats = trader.get_stats(date_from, now, base='USDT')
         first_date = stats.iloc[0]['created_at'].to_pydatetime()
-
         if abs(date_from - first_date) < timedelta(hours=1):
             daily_pnl = Decimal(stats.iloc[-1]['cum_pnl_rel'])
         else:
             daily_pnl = None
-
     except Exception as e:
         print(e)
         daily_pnl = None
     
-    # Get pnL data wrt begining of the week (Monday)
+    # Get pnL data wrt to 7d record
     try:
-        date_from = now.replace(microsecond=0, second=0, minute=0, hour=0)
-        date_from = date_from - timedelta(days=(date_from.isoweekday() - 1) % 7)
+        date_from = now - timedelta(days=7)
+        date_from = date_from.replace(microsecond=0, second=0, minute=0, hour=0)
+
         stats = trader.get_stats(date_from, now, base='USDT')
         first_date = stats.iloc[0]['created_at'].to_pydatetime()
-
         if abs(date_from - first_date) < timedelta(days=1):
             weekly_pnl = Decimal(stats.iloc[-1]['cum_pnl_rel'])
         else:
             weekly_pnl = None
-
     except Exception as e:
         print(e)
         weekly_pnl = None
 
-    # Get pnL data wrt begining of the month (1st of month)
+    # Get pnL data wrt to 1m record
     try:
-        date_from = now.replace(microsecond=0, second=0, minute=0, hour=0, day=1)
+        date_from = now - timedelta(days=30)
+        date_from = date_from.replace(microsecond=0, second=0, minute=0, hour=0)
+
         stats = trader.get_stats(date_from, now, base='USDT')
         first_date = stats.iloc[0]['created_at'].to_pydatetime()
-
         if abs(date_from - first_date) < timedelta(days=2):
             monthly_pnl = Decimal(stats.iloc[-1]['cum_pnl_rel'])
         else:
             monthly_pnl = None
-
     except Exception as e:
         print(e)
         monthly_pnl = None
