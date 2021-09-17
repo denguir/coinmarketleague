@@ -93,11 +93,11 @@ class Trader(object):
         snaps = self.get_snapshot_history(date_from, date_to, base)
         if not snaps.empty:
             snaps['balance_open'] = snaps['balance'].shift(1)
-            snaps = snaps.groupby(pd.Grouper(key='created_at',freq=freq))\
-                        .agg({'pnl': 'sum',
-                                'balance': 'last',
-                                'balance_open': 'first'
-                                })\
+            snaps = snaps.groupby(pd.Grouper(key='created_at', freq=freq))\
+                         .agg({'pnl': 'sum',
+                               'balance': 'last',
+                               'balance_open': 'first'
+                            })\
                         .reset_index()\
                         .sort_values('created_at')
             # remove nan introduced by groupby
@@ -111,13 +111,17 @@ class Trader(object):
                                           'balance_open', 'pnl_rel',
                                           'cum_pnl', 'cum_pnl_rel'])
         return snaps
-    
-    def get_order_history(self, date_from, date_to):
-        order_hist = pd.DataFrame(columns=['created_at', 'symbol', 'amount', 'price', 'side'])
-        for tc, _ in self.tcs:
-            tc_order = tc.get_order_history(date_from, date_to)
-            order_hist = order_hist.append(tc_order)
-        return order_hist.sort_values('created_at', ascending=False)
+
+    def get_btc_stats(self, date_from, date_to, freq, base='USDT'):
+        binance_market = self.markets['Binance']
+        btc_stats = binance_market.get_price_history('BTC', base, date_from, date_to, freq)
+        btc_stats['created_at'] = btc_stats['open_time'].apply(Market.to_datetime)
+        btc_stats['pnl'] = btc_stats['close_price'] - btc_stats['open_price']
+        btc_stats.loc[0, 'pnl'] = 0 # the first record is the reference
+        btc_stats['pnl_rel'] = btc_stats['pnl'] / btc_stats['open_price']
+        btc_stats['cum_pnl'] = btc_stats['pnl'].cumsum()
+        btc_stats['cum_pnl_rel'] = np.around(100 * btc_stats['cum_pnl'] / btc_stats.iloc[0].close_price, 2)
+        return btc_stats
 
     def get_transaction_history(self, date_from, date_to):
         trans = pd.DataFrame(columns=['created_at', 'asset', 'amount', 'side'])
@@ -141,13 +145,19 @@ class Trader(object):
 
         # collect daily stats and interpolate missing values
         stats = self.get_aggregated_stats(date_from, date_to, freq='D', base=base)
-
+        
+        # compute BTC stats on same time window
+        btc_stats = self.get_btc_stats(stats.created_at.min().to_pydatetime(), 
+                                       stats.created_at.max().to_pydatetime(),
+                                       freq='1d', 
+                                       base=base)
         # get PnL aggregated history
         cum_pnl_hist = {'labels': stats['created_at'].apply(
                                     lambda x: x.to_pydatetime().strftime('%d %b')).tolist(),
-                        'data': stats['cum_pnl_rel'].tolist()}
+                        'data': stats['cum_pnl_rel'].tolist(),
+                        'btc_data': btc_stats['cum_pnl_rel'].tolist()}
         profile['cum_pnl_hist'] = cum_pnl_hist
-
+    
         # get balance percentage
         balance_percentage = self.get_relative_balances(base)
         balance_percentage = {'labels': [key for key in balance_percentage.keys()], 

@@ -105,12 +105,12 @@ class BinanceMarket:
     def get_price_history(self, asset, base, date_from, date_to, interval):
         '''Return price history of asset w.r.t base between date_from and date_to'''
         assert base in self.bases, f"{base} not supported as an exchange base."
-        start = Market.to_timestamp(date_from)
-        end = Market.to_timestamp(date_to)
+        start = Market.to_timestamp(self.round_date(date_from, interval, 'open'))
+        end = Market.to_timestamp(self.round_date(date_to, interval, 'close'))
         prices = pd.DataFrame(columns=['open_time', 'open_price'])
         time_range = pd.DataFrame({
                      'open_time': self.get_timestamp_range(date_from, date_to, interval, 'open'),
-                     'close_time': self.get_timestamp_range(date_from, date_to, interval, 'clsoe')
+                     'close_time': self.get_timestamp_range(date_from, date_to, interval, 'close')
                     })
         prices['open_time'] = time_range['open_time']
         prices['close_time'] = time_range['close_time']

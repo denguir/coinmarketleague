@@ -85,6 +85,9 @@ def show_profile(request):
 @login_required
 def show_overview_profile(request, pk=None):
     user = get_object_or_404(User, pk=pk)
+    if user == request.user:
+        return redirect('profile')
+
     trader = Trader(user)
     req_profile = Profile.objects.get(user=request.user)
     nacc_req_user = len(TradingAccount.objects.filter(user=request.user))
