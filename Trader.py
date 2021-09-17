@@ -117,7 +117,6 @@ class Trader(object):
         btc_stats = binance_market.get_price_history('BTC', base, date_from, date_to, freq)
         btc_stats['created_at'] = btc_stats['open_time'].apply(Market.to_datetime)
         btc_stats['pnl'] = btc_stats['close_price'] - btc_stats['open_price']
-        btc_stats.loc[0, 'pnl'] = 0 # the first record is the reference
         btc_stats['pnl_rel'] = btc_stats['pnl'] / btc_stats['open_price']
         btc_stats['cum_pnl'] = btc_stats['pnl'].cumsum()
         btc_stats['cum_pnl_rel'] = np.around(100 * btc_stats['cum_pnl'] / btc_stats.iloc[0].close_price, 2)
