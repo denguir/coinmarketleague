@@ -48,7 +48,7 @@ class SnapshotAccount(models.Model):
     balance_usdt = models.DecimalField(max_digits=30, decimal_places=10)
     # absolute PnL wrt last snapshot
     pnl_btc =  models.DecimalField(max_digits=30, decimal_places=10, default=None, null=True)
-    pnl_usdt =  models.DecimalField(max_digits=30, decimal_places=2, default=None, null=True)
+    pnl_usdt =  models.DecimalField(max_digits=30, decimal_places=10, default=None, null=True)
 
     class Meta:
         constraints = [
