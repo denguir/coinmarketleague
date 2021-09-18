@@ -45,7 +45,7 @@ class SnapshotAccount(models.Model):
     updated_at = models.DateTimeField()
     # balance value
     balance_btc = models.DecimalField(max_digits=30, decimal_places=10, default=None, null=True)
-    balance_usdt = models.DecimalField(max_digits=30, decimal_places=2)
+    balance_usdt = models.DecimalField(max_digits=30, decimal_places=10)
     # absolute PnL wrt last snapshot
     pnl_btc =  models.DecimalField(max_digits=30, decimal_places=10, default=None, null=True)
     pnl_usdt =  models.DecimalField(max_digits=30, decimal_places=2, default=None, null=True)
