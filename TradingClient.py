@@ -284,6 +284,8 @@ class BinanceTradingClient(BaseTradingClient):
         prices['close_price_usdt'] = prices['close_price_btc'] * prices['close_price_usdt']
         prices['open_time'] = prices['open_time'].astype(int)
         prices['close_time'] = prices['close_time'].astype(int)
+        prices['asset'] = prices['asset_btc']
+        prices = prices.drop(columns=['asset_btc', 'asset_usdt', 'base_btc', 'base_usdt', 'symbol_usdt'])
 
         # compute balances per asset
         stats = snapshots.merge(prices, left_on=['asset', 'close_time'], right_on=['asset_btc', 'close_time'])
@@ -341,10 +343,13 @@ class BinanceTradingClient(BaseTradingClient):
             try:
                 snap.save()
                 snap_details = snapshots[snapshots['close_time'] == stat.close_time]
+                snap_details = snap_details.merge(prices, on=['asset', 'close_time'])
                 for item in snap_details.itertuples(name='Snap'):
                     detail = SnapshotAccountDetails(snapshot=snap, 
                                                     asset=item.asset, 
-                                                    amount=Decimal(item.amount)
+                                                    amount=Decimal(item.amount),
+                                                    price_usdt=Decimal(item.close_price_usdt),
+                                                    price_btc=Decimal(item.close_price_btc)
                                                     )
                     try:
                         detail.save()

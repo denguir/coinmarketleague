@@ -3,12 +3,30 @@ from abc import ABC, abstractmethod
 from binance import Client
 from binance.exceptions import BinanceAPIException
 from multipledispatch import dispatch
+from traderboard.models import SnapshotMarket
 import pandas as pd
 import numpy as np
 
 
-__PLATFORMS__ = ['Binance']
+class BaseMarket:
+    '''Provide with all the methods exclusively querying the local database.
+       A Market should extend this class to get access to localy stored data.'''
+    
+    def __init__(self, platform):
+        self.platform = platform
 
+    def get_price_table(self, asset, base):
+        '''Grab the last Market prices from Market'''
+        last_date = SnapshotMarket.objects.latest('created_at').created_at
+        prices = SnapshotMarket.objects.filter(created_at=last_date)
+        prices = pd.DataFrame.from_records(prices)
+        return prices
+
+    def get_klines(self, symbol, interval, startTime, endTime):
+        # give same output as get_klines
+        # aggregate like in Trader
+        pass
+    
 
 class BinanceMarket:
     '''Market info for Binance'''
@@ -61,9 +79,14 @@ class BinanceMarket:
 
     def get_price_table(self):
         '''Return current market price table'''
-        prices = self.client.get_all_tickers()
+        prices = self.client.get_ticker()
         price_table = pd.DataFrame(prices)
-        price_table = price_table.astype({"symbol": str, "price": float})
+        price_table['price'] = price_table['lastPrice']
+        price_table = price_table.astype({"symbol": str, 
+                                          "lastPrice": float,
+                                          "openPrice": float,
+                                          "highPrice": float,
+                                          "lowPrice": float})
 
         symbol_info = self.client.get_exchange_info()
         symbol_info = symbol_info['symbols']
@@ -78,7 +101,10 @@ class BinanceMarket:
         '''Return price of asset w.r.t base'''
         assert base in self.bases, f"{base} not supported as an exchange base."
         if asset == base:
-            price = 1.0
+            price = {"lastPrice": 1.0, 
+                     "openPrice": 1.0, 
+                     "highPrice": 1.0, 
+                     "lowPrice": 1.0}
         else:
             symbol = asset + base
             res = self.table[self.table['symbol'] == symbol]
@@ -90,16 +116,25 @@ class BinanceMarket:
                     others = self.table[self.table['symbol'].isin(other_symbols)]
                     if others.empty:
                         print(f"Asset {asset} seems to have no exchange with one of the supported bases {self.bases}.")
-                        price = 0.0
+                        price = {"lastPrice": 0.0, 
+                                 "openPrice": 0.0, 
+                                 "highPrice": 0.0, 
+                                 "lowPrice": 0.0}
                     else:
-                        alt_symb = others.iloc[0]['symbol']
-                        alt_price = others.iloc[0]['price']
-                        alt_base = alt_symb.split(asset, 1)[1]
-                        price = alt_price * self.get_price(alt_base, base)
+                        alt_base = others.iloc[0]['quoteAsset']
+                        alt_price = others.iloc[0][['lastPrice', 'openPrice', 'highPrice', 'lowPrice']].to_dict()
+                        base_price = self.get_price(alt_base, base)
+                        price = {alt_price[k] * base_price[k] for k in alt_price.keys()}
                 else:
-                    price = 1.0 / float(res['price'])
+                    price = {"lastPrice": 1.0 / float(res['lastPrice']), 
+                             "openPrice": 1.0 / float(res['openPrice']), 
+                             "highPrice": 1.0 / float(res['highPrice']), 
+                             "lowPrice": 1.0 / float(res['lowPrice'])}
             else:
-                price = float(res['price'])
+                price = {"lastPrice": float(res['lastPrice']), 
+                         "openPrice": float(res['openPrice']), 
+                         "highPrice": float(res['highPrice']), 
+                         "lowPrice": float(res['lowPrice'])}
         return price
 
     def get_price_history(self, asset, base, date_from, date_to, interval):

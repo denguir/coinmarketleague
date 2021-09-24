@@ -170,6 +170,10 @@ class Trader(object):
         trades_hist['price'] = trades_hist['price'].apply(lambda x: x.normalize())
         profile['trades_hist'] = trades_hist.to_dict('records')
 
+        # TODO:
+        # get per asset performance
+
+
         profile['overview'] = overview
         # get private information
         if not overview:

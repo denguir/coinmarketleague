@@ -53,9 +53,13 @@ def take_snapshot(ta, market, now):
         snap.save()
         # save account details
         for record in balance_details.itertuples():
+            price_usdt = market.get_price(record.asset, 'USDT')
+            price_btc = market.get_price(record.asset, 'BTC')
             details = SnapshotAccountDetails(snapshot=snap, 
-                                            asset=record.asset, 
-                                            amount=Decimal(record.amount)
+                                             asset=record.asset, 
+                                             amount=Decimal(record.amount),
+                                             price_usdt=Decimal(price_usdt),
+                                             price_btc=Decimal(price_btc)
                                             )
             try:
                 details.save()

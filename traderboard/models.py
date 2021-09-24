@@ -5,6 +5,10 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 
+class TradingPlatform(models.TextChoices):
+    BINANCE = 'Binance'
+
+
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     # main settings
@@ -19,8 +23,6 @@ class Profile(models.Model):
 
 class TradingAccount(models.Model):
     '''Trading account of a given User on a supported TradingPlatform'''
-    class TradingPlatform(models.TextChoices):
-        BINANCE = 'Binance'
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -63,6 +65,8 @@ class SnapshotAccountDetails(models.Model):
     snapshot = models.ForeignKey(SnapshotAccount, on_delete=models.CASCADE)
     asset = models.CharField(max_length=10)
     amount = models.DecimalField(max_digits=30, decimal_places=10)
+    price_usdt = models.DecimalField(max_digits=30, decimal_places=10, default=None, null=True)
+    price_btc = models.DecimalField(max_digits=30, decimal_places=10, default=None, null=True)
 
     class Meta:
         constraints = [
@@ -96,6 +100,20 @@ class AccountTransactions(models.Model):
             models.UniqueConstraint(fields=['account', 'created_at', 'asset', 'amount', 'side'], 
                                     name='No transaction duplicate')
         ]
+
+
+class SnapshotMarket(models.Model):
+    '''Snapshot of the Market prices'''
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+    platform = models.CharField(max_length=100,
+                                choices=TradingPlatform.choices,
+                                default=TradingPlatform.BINANCE)
+
+    symbol = models.CharField(max_length=20, default='Unknown')
+    asset = models.CharField(max_length=20, default='Unknown')
+    base = models.CharField(max_length=20, default='Unknown')
+    price = models.DecimalField(max_digits=30, decimal_places=10)
 
 
 @receiver(post_save, sender=User)
