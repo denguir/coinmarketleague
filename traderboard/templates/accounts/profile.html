@@ -122,42 +122,85 @@
   <!-- Content Row -->
 
   <div class="row">
+    <!-- Pie Chart -->
+    <div class="col-xl-6 col-lg-12">
+        <div class="card shadow mb-4">
+            <!-- Card Header - Dropdown -->
+            <div
+                class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Asset Allocation (%)</h6>
+            </div>
+            <!-- Card Body -->
+            <div class="card-body">
+                <div class="chart-pie pt-4 pb-2">
+                    <canvas id="balPercChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
 
-      <!-- Area Chart -->
-      <div class="col-xl-6 col-lg-12">
-          <div class="card shadow mb-4">
-              <!-- Card Header - Dropdown -->
-              <div
-                  class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                  <h6 class="m-0 font-weight-bold text-primary">Cumulative PnL (%)</h6>
-              </div>
-              <!-- Card Body -->
-              <div class="card-body">
-                  <div class="chart-area">
-                      <canvas id="cumPnLChart"></canvas>
-                  </div>
-              </div>
-          </div>
-      </div>
+    <div class="col-xl-6 col-lg-12">
+        <div class="card shadow mb-4">
+    
+            <div
+                class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Balance Performance (%)</h6>
+            </div>
+            
+            <div class="card-body">
+                <div class="table-responsive" style="height: 275px; overflow:auto; text-align:center;">
+                    <table class="table table-striped table-bordered table-sm" id="balanceTable" width="100%" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th>Asset</th>
+                                <th>24h PnL </th>
+                                <th>Last buy PnL</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                          {% for perf in balance_perf %}
+                            <tr>
+                              <td>{{ perf.asset }}</td>
 
-      <!-- Pie Chart -->
-      <div class="col-xl-6 col-lg-12">
-          <div class="card shadow mb-4">
-              <!-- Card Header - Dropdown -->
-              <div
-                  class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                  <h6 class="m-0 font-weight-bold text-primary">Asset Allocation (%)</h6>
-              </div>
-              <!-- Card Body -->
-              <div class="card-body">
-                  <div class="chart-pie pt-4 pb-2">
-                      <canvas id="balPercChart"></canvas>
-                  </div>
-              </div>
-          </div>
-      </div>
+                              {% if perf.perf_last_24h is not None %}
+                                <td>{{ perf.perf_last_24h }} %</td>
+                              {% else %}
+                                <td>-</td>
+                              {% endif %}
+
+                              {% if perf.perf_last_buy is not None %}
+                                <td>{{ perf.perf_last_buy }} %</td>
+                              {% else %}
+                                <td>-</td>
+                              {% endif %}
+                            </tr>
+                          {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
   </div>
 
+  <div class="row">
+    <!-- Area Chart -->
+    <div class="col-xl-12 col-lg-12">
+        <div class="card shadow mb-4">
+            <!-- Card Header - Dropdown -->
+            <div
+                class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Cumulative PnL (%)</h6>
+            </div>
+            <!-- Card Body -->
+            <div class="card-body">
+                <div class="chart-area">
+                    <canvas id="cumPnLChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+  </div>
 
     <!-- Content Row -->
     {% if not overview %}
@@ -200,6 +243,10 @@
 
 
     <div class="row">
+
+    </div>
+
+    <div class="row">
         <div class="col-xl-6 col-lg-12">
             <div class="card shadow mb-4">
         
@@ -209,7 +256,7 @@
                 </div>
                 
                 <div class="card-body">
-                    <div class="table-responsive" style="height:300px; overflow:auto;">
+                    <div class="table-responsive" style="height:300px; overflow:auto; text-align:center;">
                         <table class="table table-striped table-bordered table-sm" id="tradeTable" width="100%" cellspacing="0">
                             <thead>
                                 <tr>
@@ -246,7 +293,7 @@
                 </div>
                 
                 <div class="card-body">
-                    <div class="table-responsive" style="height:300px; overflow:auto;">
+                    <div class="table-responsive" style="height:300px; overflow:auto; text-align:center;">
                         <table class="table table-striped table-bordered table-sm" id="transactionTable" width="100%" cellspacing="0">
                             <thead>
                                 <tr>
@@ -584,7 +631,7 @@
         caretPadding: 10,
         },
         legend: {
-            display: true,
+            display: data.length > 20 ? false:true,
             position: 'right',
             labels: {
                 generateLabels: function(chart) {

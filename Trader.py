@@ -1,8 +1,13 @@
-from Market import Market
-from TradingClient import TradingClient
-from traderboard.models import TradingAccount, SnapshotAccount
 import numpy as np
 import pandas as pd
+from Market import Market
+from TradingClient import TradingClient
+from traderboard.models import (TradingAccount,
+                                SnapshotAccount, 
+                                SnapshotAccountDetails, 
+                                AccountTrades, 
+                                AccountTransactions)
+
 
 
 class Trader(object):
@@ -113,6 +118,7 @@ class Trader(object):
         return snaps
 
     def get_btc_stats(self, date_from, date_to, freq, base='USDT'):
+        # hard coded to binance market
         binance_market = self.markets['Binance']
         btc_stats = binance_market.get_price_history('BTC', base, date_from, date_to, freq)
         btc_stats['created_at'] = btc_stats['open_time'].apply(Market.to_datetime)
@@ -138,29 +144,64 @@ class Trader(object):
         trades = trades.sort_values('created_at', ascending=False)
         return trades
 
+    def get_balances_performance(self, assets, base='USDT'):
+        # hard coded to binance market
+        binance_market = self.markets['Binance']
+        perfs = pd.DataFrame(columns=['asset', 'perf_last_24h', 'perf_last_buy'])
+        for asset in assets:
+            asset_perfs = {'asset': asset}
+            prices = binance_market.get_price(asset, base)
+            asset_perfs['perf_last_24h'] = \
+                            round(100*(prices['lastPrice'] - prices['openPrice']) / prices['openPrice'], 2)
+            try:
+                last_buy = AccountTrades.objects.filter(account__in=self.tas)\
+                                                .filter(symbol__startswith=asset)\
+                                                .filter(side='BUY')\
+                                                .latest('created_at')
+                if last_buy.symbol.endswith(base):
+                    buy_price = float(last_buy.price)
+                else:
+                    snap = SnapshotAccount.objects.filter(account=last_buy.account)\
+                                                .filter(created_at__gte=last_buy.created_at)\
+                                                .earliest('created_at')
+                    snap_detail = SnapshotAccountDetails.objects.filter(snapshot=snap)\
+                                                                .get(asset=asset)
+                    if base == 'BTC':
+                        buy_price = float(snap_detail.price_btc)
+                    else:
+                        buy_price = float(snap_detail.price_usdt)
+
+                asset_perfs['perf_last_buy'] = round(100*(prices['lastPrice'] - buy_price) / buy_price, 2)
+            except:
+                asset_perfs['perf_last_buy'] = None
+            perfs = perfs.append(asset_perfs, ignore_index=True)
+        return perfs
+
+
     def get_profile(self, date_from, date_to, base='USDT', overview=True):
         '''Process all metrics displayed in user's profile'''
         profile = {'trader': self.user, 'currency': base}
 
         # collect daily stats and interpolate missing values
         stats = self.get_aggregated_stats(date_from, date_to, freq='D', base=base)
-        
+
         # compute BTC stats on same time window
-        btc_stats = self.get_btc_stats(stats.created_at.min().to_pydatetime(), 
-                                       stats.created_at.max().to_pydatetime(),
-                                       freq='1d', 
-                                       base=base)
-        # get PnL aggregated history
-        cum_pnl_hist = {'labels': stats['created_at'].apply(
-                                    lambda x: x.to_pydatetime().strftime('%d %b')).tolist(),
-                        'data': stats['cum_pnl_rel'].tolist(),
-                        'btc_data': btc_stats['cum_pnl_rel'].tolist()}
-        profile['cum_pnl_hist'] = cum_pnl_hist
+        if not stats.empty:
+            btc_stats = self.get_btc_stats(stats.created_at.min().to_pydatetime(), 
+                                        stats.created_at.max().to_pydatetime(),
+                                        freq='1d', 
+                                        base=base)
+            # get PnL aggregated history
+            cum_pnl_hist = {'labels': stats['created_at'].apply(
+                                        lambda x: x.to_pydatetime().strftime('%d %b')).tolist(),
+                            'data': stats['cum_pnl_rel'].tolist(),
+                            'btc_data': btc_stats['cum_pnl_rel'].tolist()}
+            profile['cum_pnl_hist'] = cum_pnl_hist
     
         # get balance percentage
         balance_percentage = self.get_relative_balances(base)
-        balance_percentage = {'labels': [key for key in balance_percentage.keys()], 
-                              'data': [value for value in balance_percentage.values()]}
+        balance_percentage = {'labels': list(balance_percentage.keys()), 
+                              'data': list(balance_percentage.values())}
         profile['balance_percentage'] = balance_percentage
 
         # get trade history
@@ -170,28 +211,29 @@ class Trader(object):
         trades_hist['price'] = trades_hist['price'].apply(lambda x: x.normalize())
         profile['trades_hist'] = trades_hist.to_dict('records')
 
-        # TODO:
         # get per asset performance
-
+        balance_perf = self.get_balances_performance(balance_percentage['labels'])
+        profile['balance_perf'] = balance_perf.to_dict('records')
 
         profile['overview'] = overview
         # get private information
         if not overview:
-            # get balance aggregated history
-            balance_hist = {'labels': stats['created_at'].apply(
-                                        lambda x: x.to_pydatetime().strftime('%d %b')).tolist(),
-                            'data': stats['balance'].tolist()}
-            profile['balance_hist'] = balance_hist
+            if not stats.empty:
+                # get balance aggregated history
+                balance_hist = {'labels': stats['created_at'].apply(
+                                            lambda x: x.to_pydatetime().strftime('%d %b')).tolist(),
+                                'data': stats['balance'].tolist()}
+                profile['balance_hist'] = balance_hist
+
+                # get daily pnl
+                daily_pnl_hist = {'labels': stats['created_at'].apply(
+                                                lambda x: x.to_pydatetime().strftime('%d %b')).tolist(),
+                                'data': stats['pnl'].tolist()}
+                profile['daily_pnl_hist'] = daily_pnl_hist
 
             # get balance info now
             balance = round(self.get_balances_value(base), 2)
             profile['balance'] = balance
-
-            # get daily pnl
-            daily_pnl_hist = {'labels': stats['created_at'].apply(
-                                            lambda x: x.to_pydatetime().strftime('%d %b')).tolist(),
-                              'data': stats['pnl'].tolist()}
-            profile['daily_pnl_hist'] = daily_pnl_hist
 
             # get transaction history
             trans_hist = self.get_transaction_history(date_from, date_to)

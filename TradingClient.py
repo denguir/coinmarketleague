@@ -114,7 +114,7 @@ class BinanceTradingClient(BaseTradingClient):
     def get_value_table(self, balances, market, base='USDT'):
         '''Compute the value of a balances using the current market prices.'''
         balances['base'] = base
-        balances['price'] = balances.apply(lambda x: market.get_price(x['asset'], x['base']), axis=1)
+        balances['price'] = balances.apply(lambda x: market.get_price(x['asset'], x['base'])['lastPrice'], axis=1)
         balances['value'] = balances['amount'] * balances['price']
         return balances
 
