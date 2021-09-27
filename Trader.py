@@ -215,7 +215,9 @@ class Trader(object):
         balance_perf = self.get_balances_performance(balance_percentage['labels'])
         profile['balance_perf'] = balance_perf.to_dict('records')
 
+        # set overview flag
         profile['overview'] = overview
+        
         # get private information
         if not overview:
             if not stats.empty:
