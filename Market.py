@@ -124,7 +124,7 @@ class BinanceMarket:
                         alt_base = others.iloc[0]['quoteAsset']
                         alt_price = others.iloc[0][['lastPrice', 'openPrice', 'highPrice', 'lowPrice']].to_dict()
                         base_price = self.get_price(alt_base, base)
-                        price = {alt_price[k] * base_price[k] for k in alt_price.keys()}
+                        price = {k: alt_price[k] * base_price[k] for k in alt_price.keys()}
                 else:
                     price = {"lastPrice": 1.0 / float(res['lastPrice']), 
                              "openPrice": 1.0 / float(res['openPrice']), 
