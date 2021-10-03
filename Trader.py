@@ -161,6 +161,10 @@ class Trader(object):
                 if last_buy.symbol.endswith(base):
                     buy_price = float(last_buy.price)
                 else:
+                    # TODO:
+                    # The most scalable thing is to have a Market table containing the price
+                    # of each coin at each hour (cronjob for price extraction)
+                    # rather to store the price of each asset possessed by a ta in SnapshotDetails
                     snap = SnapshotAccount.objects.filter(account=last_buy.account)\
                                                 .filter(created_at__gte=last_buy.created_at)\
                                                 .earliest('created_at')

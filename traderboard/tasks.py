@@ -130,30 +130,27 @@ def update_profile(user, markets, now):
     return user
 
 
-def update_order_history(ta, now, market):
-    '''Update AccountTrades database with recent trades'''
-    try:
-        snap = AccountTrades.objects.filter(account=ta).latest('created_at')
-        date_from = snap.created_at
-    except AccountTrades.DoesNotExist:
-        date_from = now - timedelta(days=31)
-    
-    tc = TradingClient.connect(ta)
-    tc.set_order_history(date_from, now, market)
+@shared_task
+def update_all_profile():
+    # Take time snapshot of market state
+    now = datetime.now(timezone.utc)
+    markets = {platform : Market.connect(platform) for platform in __PLATFORMS__}
+    users = User.objects.all()
+
+    for user in users:
+        # Collect account level data
+        tas = TradingAccount.objects.filter(user=user)
+        for ta in tas:
+            try:
+                take_snapshot(ta, markets[ta.platform], now)
+            except Exception as e:
+                print(f"Error during snapshot of {ta.user.username} - account {ta.id}.")
+                print(e)
+        # Collect user level data
+        update_profile(user, markets, now)
 
 
-def update_transaction_history(ta, now, market):
-    '''Update AccountTransactions database with recent funds transaction'''
-    try:
-        snap = AccountTransactions.objects.filter(account=ta).latest('created_at')
-        date_from = snap.created_at
-    except AccountTransactions.DoesNotExist:
-        date_from = now - timedelta(days=31)
-    
-    tc = TradingClient.connect(ta)
-    tc.set_order_history(date_from, now, market)
-
-
+@shared_task
 def record_transaction(event, ta_id):
     ta = TradingAccount.objects.get(id=ta_id)
     if ta:
@@ -178,6 +175,7 @@ def record_transaction(event, ta_id):
         raise Exception(f'Trading account {ta_id} does not exist.')
 
 
+@shared_task
 def record_trade(event, ta_id):
     ta = TradingAccount.objects.get(id=ta_id)
     if ta:
@@ -213,6 +211,7 @@ def record_trade(event, ta_id):
 
 # functions that are supposed to be run once at account registration
 
+@shared_task
 def load_account_history(user_id, ta_id):
     '''Load past balance data at trading account registration'''
     user = User.objects.get(id=user_id)
@@ -221,7 +220,7 @@ def load_account_history(user_id, ta_id):
     tc = TradingClient.connect(ta)
     now = datetime.now(timezone.utc)
 
-    for _ in range(1):
+    for _ in range(6):
         try:
             first_snap = SnapshotAccount.objects.filter(account=ta).earliest('created_at')
             date_to = first_snap.created_at
@@ -230,10 +229,11 @@ def load_account_history(user_id, ta_id):
             
         date_from = date_to - timedelta(days=30)
         tc.load_transaction_history(date_from, date_to)
-        print(f'Transaction history of accout {ta.id} loaded successfully.')
+        print(f'Transaction history ({date_from} -> {date_to}) of accout {ta.id}\
+             loaded successfully.')
         tc.load_snapshot_history(date_from, date_to, market)
-        print(f'Snapshot history of account {ta.id} loaded succesfully.')
-    
+        print(f'Snapshot history  ({date_from} -> {date_to}) of account {ta.id}\
+             loaded succesfully.')
+
     take_snapshot(ta, market, now)
     update_profile(user, None, now)
-    

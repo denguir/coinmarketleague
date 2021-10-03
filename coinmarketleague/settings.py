@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 import os
 import django_heroku
 from django.contrib.messages import constants as messages
+from celery.schedules import crontab
+
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -180,5 +182,11 @@ CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_TIMEZONE = "UTC"
 
+CELERY_BEAT_SCHEDULE = {
+    "update_all_profile": {
+        "task": "traderboard.tasks.update_all_profile",
+        "schedule": crontab(minute=[0, 30]),
+    },
+}
 # Settings for heroku
 django_heroku.settings(locals())

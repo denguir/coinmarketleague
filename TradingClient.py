@@ -288,7 +288,7 @@ class BinanceTradingClient(BaseTradingClient):
         prices = prices.drop(columns=['asset_btc', 'asset_usdt', 'base_btc', 'base_usdt', 'symbol_usdt'])
 
         # compute balances per asset
-        stats = snapshots.merge(prices, left_on=['asset', 'close_time'], right_on=['asset_btc', 'close_time'])
+        stats = snapshots.merge(prices, on=['asset', 'close_time'])
         stats['close_balance_btc'] = stats['amount'] * stats['close_price_btc']
         stats['close_balance_usdt'] = stats['amount'] * stats['close_price_usdt']
 

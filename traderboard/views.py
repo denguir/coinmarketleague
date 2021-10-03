@@ -13,7 +13,7 @@ from django.template.context_processors import csrf
 from django.db.models import F
 from verify_email.email_handler import send_verification_email
 from datetime import datetime, timedelta, timezone
-from .tasks import load_account_history
+from traderboard.tasks import load_account_history
 
 
 def home_out(request):
@@ -236,7 +236,7 @@ def add_trading_account(request):
             messages.success(request, 'Trading account added successfully!')
             # load past data when adding a trading account
             try:
-                load_account_history(user.id, ta.id)
+                load_account_history.delay(user.id, ta.id)
                 messages.success(request, 'Account synchronization success!')
             except Exception as e:
                 print(e)
