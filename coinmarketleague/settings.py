@@ -188,5 +188,12 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(minute=[0, 30]),
     },
 }
+
+# ERD mdoel
+GRAPH_MODELS = {
+    'all_applications': True,
+    'group_models': True,
+}
+
 # Settings for heroku
 django_heroku.settings(locals())
