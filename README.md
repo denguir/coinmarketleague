@@ -16,17 +16,17 @@ The main page of the website is the trader board which ranks every trader accord
 
 #### Metrics
 Each trader has a profile which displays a bunch of statistics on a dashboard:
-- PnL (Daily): Profit and Loss compared to 24h ago (updated every hour) 
-- PnL (Weekly): Profit and Loss compared to 7d ago (updated every hour)
-- PnL (Monthly): Profit and Loss compared to 30d ago (updated every hour) 
-- :lock: Total Balance: Value of your portfolio (real time) 
-- Asset allocation: What are the crypto you currently possess
-- Balance performance: For each coin you possess, what is the 24h performance and the performance since the last time you bought it
-- Cumulative PnL: Using the calendar filter, plot your PnL evolution since the first day. A comparison with the BTC price evolution is available
-- :lock: Daily PnL: How much USDT did you earn each day in the calendar time window
-- :lock: Balance Net Worth: What is the value of the portfolio of each day in the calendar time window
-- Trade history: Display all the trades made during the calendar time window
-- :lock: Transaction history: Display all the transactions made during the calendar time window
+- __PnL (Daily)__: Profit and Loss compared to 24h ago (updated every hour) 
+- __PnL (Weekly)__: Profit and Loss compared to 7d ago (updated every hour)
+- __PnL (Monthly)__: Profit and Loss compared to 30d ago (updated every hour) 
+- :lock: __Total Balance__: Value of your portfolio (real time) 
+- __Asset allocation__: What are the crypto you currently possess
+- __Balance performance__: For each coin you possess, what is the 24h performance and the performance since the last time you bought it
+- __Cumulative PnL__: Using the calendar filter, plot your PnL evolution since the first day. A comparison with the BTC price evolution is available
+- :lock: __Daily PnL__: How much USDT did you earn each day in the calendar time window
+- :lock: __Balance Net Worth__: What is the value of the portfolio of each day in the calendar time window
+- __Trade history__: Display all the trades made during the calendar time window
+- :lock: __Transaction history__: Display all the transactions made during the calendar time window
 
 
 ## Goals and vision of the website
