@@ -185,7 +185,7 @@ CELERY_TIMEZONE = "UTC"
 CELERY_BEAT_SCHEDULE = {
     "update_all_profile": {
         "task": "traderboard.tasks.update_all_profile",
-        "schedule": crontab(minute=[0, 30]),
+        "schedule": crontab(minute=[0,]),
     },
 }
 
