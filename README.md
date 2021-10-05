@@ -11,7 +11,7 @@ The main page of the website is the trader board which ranks every trader accord
 
 #### Rules
 - All the calculation are made in __USDT__
-- All the graphs are display at daily granularity and the time window can be modified using the calendar filter (default is last 7 days + today)
+- All the graphs are displayed with a daily granularity and the time window can be modified using the calendar filter (default is last 7 days + today)
 - Metrics are private if they are tagged with a :lock: , which means that these are not visible by your peers
 
 #### Metrics
