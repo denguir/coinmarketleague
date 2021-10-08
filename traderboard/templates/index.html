@@ -46,7 +46,9 @@
                     {% for ranking, trader in traders %}
                         <tr>
                             <th class="isolated" scope="row">{{ ranking }}</th>
-                            <td><a class="selectable" href="{% url 'profile_with_pk' pk=trader.user.pk %}">{{ trader.user.username }}</a></td>
+                            <td>
+                                <a class="selectable" href="{% url 'profile_with_pk' pk=trader.user.pk %}">{{ trader.user.username }}</a>
+                            </td>
                             {% if trader.daily_pnl is not None %} 
                                 <td>{{ trader.daily_pnl }} %</td>
                             {% else %}

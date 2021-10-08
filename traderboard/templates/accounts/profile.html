@@ -20,21 +20,6 @@
   <!-- Page Heading -->
   <div class="d-sm-flex align-items-center justify-content-between mb-4">
       <h1 class="h3 mb-0 text-gray-800 mr-auto">{{ trader.username }}'s trading dashboard</h1>
-
-      <form method="GET" action=".">
-          <div class="form-row">
-              <div class="form-group col-mr-2">
-                <label for="date_from">From</label>
-                <input type="date" class="form-control" id="date_from" name="date_from">
-              </div>
-              <div class="form-group col-mr-2">
-                <label for="date_to">To</label>
-                <input type="date" class="form-control" id="date_to" name="date_to">
-              </div>
-          </div>
-          <button type="submit" class="btn btn-primary">Search</button>
-      </form>
-
   </div>
 
   <!-- Content Row -->
@@ -181,6 +166,26 @@
             </div>
         </div>
     </div>
+  </div>
+
+  <div class="row">
+      <div class="col-xl-12 col-lg-12">
+        <form method="GET" action=".">
+            <div class="form-row">
+                <div class="form-group form-inline col-mr-4">
+                    <label for="date_from">From</label>&nbsp;
+                    <input type="date" class="form-control" id="date_from" name="date_from">
+                </div>
+                <div class="form-group form-inline col-mr-4">
+                    <label for="date_to">To</label>&nbsp;
+                    <input type="date" class="form-control" id="date_to" name="date_to">
+                </div>
+                <div class="form-group form-inline col-mr-4">
+                    <button type="submit" class="btn btn-primary" style="float: right;">Apply</button>
+                </div>
+            </div>
+        </form>
+       </div>
   </div>
 
   <div class="row">
