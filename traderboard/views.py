@@ -236,7 +236,7 @@ def add_trading_account(request):
             messages.success(request, 'Trading account added successfully!')
             # load past data when adding a trading account
             try:
-                load_account_history.delay(user.id, ta.id)
+                load_account_history.delay(user.id, ta.id, 6)
                 messages.success(request, 'Account synchronization success!')
             except Exception as e:
                 print(e)

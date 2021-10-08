@@ -212,7 +212,7 @@ def record_trade(event, ta_id):
 # functions that are supposed to be run once at account registration
 
 @shared_task
-def load_account_history(user_id, ta_id):
+def load_account_history(user_id, ta_id, n_month):
     '''Load past balance data at trading account registration'''
     user = User.objects.get(id=user_id)
     ta = TradingAccount.objects.get(id=ta_id)
@@ -220,7 +220,7 @@ def load_account_history(user_id, ta_id):
     tc = TradingClient.connect(ta)
     now = datetime.now(timezone.utc)
 
-    for _ in range(6):
+    for _ in range(n_month):
         try:
             first_snap = SnapshotAccount.objects.filter(account=ta).earliest('created_at')
             date_to = first_snap.created_at
