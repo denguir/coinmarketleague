@@ -55,8 +55,7 @@ class Trader(object):
                 else:
                     balances[asset] = value
         if total > 0.0:
-            balances = {asset: round(value*100/total, 2) for asset, value in balances.items()}
-            balances = {asset: percentage for asset, percentage in balances.items() if percentage >= 0.1}
+            balances = {asset: round(value*100/total, 2) for asset, value in balances.items() if value > 0.0}
         return balances
 
     def get_balances_value(self, base='USDT'):

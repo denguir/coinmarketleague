@@ -107,13 +107,13 @@ class BinanceMarket:
                      "lowPrice": 1.0}
         else:
             symbol = asset + base
-            res = self.table[self.table['symbol'] == symbol]
+            res = self.table[(self.table['symbol'] == symbol) & (self.table['lastId'] > 0)]
             if res.empty:
                 symbol = base + asset
-                res = self.table[self.table['symbol'] == symbol]
+                res = self.table[(self.table['symbol'] == symbol) & (self.table['lastId'] > 0)]
                 if res.empty:
                     other_symbols = [asset + other_base for other_base in self.bases]
-                    others = self.table[self.table['symbol'].isin(other_symbols)]
+                    others = self.table[(self.table['symbol'].isin(other_symbols)) & (self.table['lastId'] > 0)]
                     if others.empty:
                         print(f"Asset {asset} seems to have no exchange with one of the supported bases {self.bases}.")
                         price = {"lastPrice": 0.0, 
