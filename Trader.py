@@ -55,7 +55,8 @@ class Trader(object):
                 else:
                     balances[asset] = value
         if total > 0.0:
-            balances = {asset: round(value*100/total, 2) for asset, value in balances.items() if value > 0.0}
+            balances = {asset: round(value*100/total, 2) for asset, value in balances.items() 
+                        if round(value*100/total, 2) > 0.0} # reject dust coins
         return balances
 
     def get_balances_value(self, base='USDT'):
