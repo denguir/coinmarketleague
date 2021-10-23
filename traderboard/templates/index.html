@@ -9,6 +9,13 @@
 {% endblock %}
 
 {% block page-content %}
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+    </div>
+    {% endfor %}
+{% endif %}
 <!-- Begin Page Content -->
 <div class="container-fluid col-lg-10 col-md-12 col-sm-12">
 

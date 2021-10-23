@@ -30,11 +30,16 @@ def home_out(request):
 def home(request):
     '''home page for logged in users'''
     user = request.user
+    nacc_user = len(TradingAccount.objects.filter(user=user))
     order_by = request.GET.get('order_by', 'daily_pnl')
     traders = enumerate(Profile.objects.order_by(F('daily_pnl').desc(nulls_last=True),
                                                  F('weekly_pnl').desc(nulls_last=True),
                                                  F('monthly_pnl').desc(nulls_last=True),   
                                                  ), start=1)
+    if nacc_user == 0:
+        messages.info(request, 'You have no trading account linked to your profile.\n\
+            Upgrade your profile on "Settings" > "Link trading account" to have your own dashboard !')
+
     return render(request, 'index.html', {'traders': traders, 'user': user})
 
 
@@ -56,7 +61,7 @@ def register(request):
 
 @login_required
 def show_profile(request):
-    user = User.objects.get(pk=request.user.id)
+    user = request.user
     nacc_user = len(TradingAccount.objects.filter(user=user))
     trader = Trader(user)
     if request.method == 'GET':
@@ -77,8 +82,8 @@ def show_profile(request):
         else:
             profile = {'overview': False, 'trader': user}
             messages.info(request, 'You have no trading account linked to your profile.\n\
-                                    Upgrade your profile on Settings > Link trading account to have your own dashboard !')
-        profile['user'] = request.user
+                                    Upgrade your profile on "Settings" > "Link trading account" to have your own dashboard !')
+        profile['user'] = user
         return render(request, 'accounts/profile.html', profile)
 
 
@@ -113,7 +118,7 @@ def show_overview_profile(request, pk=None):
                             
             else:         
                 messages.info(request, 'You have no trading account linked to your profile.\n\
-                                        Upgrade your profile on Settings > Link trading account to be able to inspect others dashboard !')
+                                        Upgrade your profile on "Settings" > "Link trading account" to be able to inspect others dashboard !')
         
         profile['user'] = request.user
         return render(request, 'accounts/profile.html', profile)
@@ -255,7 +260,6 @@ def add_trading_account(request):
 @login_required
 def remove_trading_account(request, pk=None):
     ta = get_object_or_404(TradingAccount, user=request.user, pk=pk)
-    profile = Profile.objects.filter(user=request.user)
     if ta:
         ta.delete()
         messages.success(request, 'Trading account succesfully removed.')

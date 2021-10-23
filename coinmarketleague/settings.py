@@ -164,7 +164,7 @@ else:
 
 # Email verification
 HTML_MESSAGE_TEMPLATE = os.path.join(HTML_APP_DIR, 'accounts', 'activate_account_email.html')
-SUBJECT = 'Account activation'
+SUBJECT = 'Coinmarketleague account activation'
 VERIFICATION_SUCCESS_TEMPLATE = None
 VERIFICATION_FAILED_TEMPLATE = os.path.join(HTML_APP_DIR, 'accounts', 'activate_account_failed.html')
 
