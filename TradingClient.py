@@ -183,7 +183,7 @@ class BinanceTradingClient(BaseTradingClient):
         fiat_deposits = pd.DataFrame(columns=['created_at', 'time', 'asset', 'amount', 'side'])    
         if fiat_info:
             fiat_deposits = pd.DataFrame(fiat_info)
-            fiat_deposits[fiat_deposits['status'] == 'Successful']
+            fiat_deposits = fiat_deposits[fiat_deposits['status'] == 'Successful']
             fiat_deposits['time'] = fiat_deposits['createTime']
             fiat_deposits['created_at'] = fiat_deposits['time'].apply(lambda x: Market.to_datetime(x))
             fiat_deposits['amount'] = fiat_deposits['amount'].astype(float)
@@ -222,7 +222,7 @@ class BinanceTradingClient(BaseTradingClient):
         fiat_withdrawals = pd.DataFrame(columns=['created_at', 'time', 'asset', 'amount', 'side'])
         if fiat_info:
             fiat_withdrawals = pd.DataFrame(fiat_info)
-            fiat_withdrawals[fiat_withdrawals['status'] == 'Successful']
+            fiat_withdrawals = fiat_withdrawals[fiat_withdrawals['status'] == 'Successful']
             fiat_withdrawals['time'] = fiat_withdrawals['createTime']
             fiat_withdrawals['created_at'] = fiat_withdrawals['time'].apply(lambda x: Market.to_datetime(x))
             fiat_withdrawals['amount'] = fiat_withdrawals['amount'].astype(float)

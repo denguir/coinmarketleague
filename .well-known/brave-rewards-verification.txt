@@ -1,4 +1,0 @@
-This is a Brave Rewards publisher verification file.
-
-Domain: coinmarketleague.net
-Token: d9431087f530431734ad8f9459f6f17faaaee7ac7aaa579b9207a1e616cd3dd4
