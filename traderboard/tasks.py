@@ -137,7 +137,10 @@ def update_all_profile():
     markets = {platform : Market.connect(platform) for platform in __PLATFORMS__}
     users = User.objects.all()
 
-    for user in users:
+    for i, user in enumerate(users):
+        # quick patch (TO REMOVE)
+        if i == 22:
+            time.sleep(60)
         # Collect account level data
         tas = TradingAccount.objects.filter(user=user)
         for ta in tas:
