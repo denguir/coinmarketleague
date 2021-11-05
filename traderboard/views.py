@@ -94,7 +94,6 @@ def show_overview_profile(request, pk=None):
         return redirect('profile')
 
     trader = Trader(user)
-    req_profile = Profile.objects.get(user=request.user)
     nacc_req_user = len(TradingAccount.objects.filter(user=request.user))
     nacc_user = len(TradingAccount.objects.filter(user=user))
     if request.method == 'GET':
@@ -230,7 +229,6 @@ def show_trading_accounts(request):
 @login_required
 def add_trading_account(request):
     user = User.objects.get(pk=request.user.id)
-    profile = Profile.objects.filter(user=user)
     args = {}
     args.update(csrf(request))
     args['user'] = user

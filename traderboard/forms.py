@@ -1,11 +1,11 @@
 import re
 from django import forms
-from django.contrib.auth import models
+from django.db.models import Q
 from django.contrib.auth.models import User
 from traderboard.models import Profile, TradingAccount
 from TradingClient import TradingClient
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from django.utils.safestring import mark_safe
 
 __PLATFORMS__ = ['Binance']
@@ -28,13 +28,13 @@ class RegistrationForm(UserCreationForm):
     
     def clean_username(self):
         username = self.cleaned_data['username']
-        if username and User.objects.filter(username__iexact=username).exists():
+        if username and User.objects.filter(Q(username__iexact=username) | Q(email__iexact=username)).exists():
             raise forms.ValidationError(u'This username is already used. Please choose another one.')
         return username
 
     def clean_email(self):
         email = self.cleaned_data['email']
-        if email and User.objects.filter(email__iexact=email).exists():
+        if email and User.objects.filter(Q(username__iexact=email) | Q(email__iexact=email)).exists():
             raise forms.ValidationError(u'This email address is already used. Please choose another one.')
         return email
 
@@ -50,7 +50,8 @@ class RegistrationForm(UserCreationForm):
 
 class EditProfileForm(UserChangeForm):
     password = None
-    # username = forms.CharField(max_length=30, disabled=False)
+    username = forms.CharField(max_length=30, help_text='Maximum 30 characters long.')
+    
     class Meta:
         model = User
         fields = (
@@ -58,8 +59,8 @@ class EditProfileForm(UserChangeForm):
             'first_name',
             'last_name',
             'email',
-        )
-
+        )   
+    
 
 class EditSettingsForm(forms.ModelForm):
     picture = forms.ImageField(help_text='Max size: 1 MB')

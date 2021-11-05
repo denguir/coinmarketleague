@@ -143,6 +143,8 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'home_out'
 
+# Authentication backend
+AUTHENTICATION_BACKENDS = ['traderboard.backends.UsernameOrEmailBackend', ]
 
 # Server settings
 if DEBUG:
