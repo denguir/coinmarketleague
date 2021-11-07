@@ -66,7 +66,6 @@ def register(request):
 
 
 @login_required
-@cache_page(CACHE_TTL)
 def show_profile(request):
     user = request.user
     nacc_user = len(TradingAccount.objects.filter(user=user))
@@ -95,7 +94,6 @@ def show_profile(request):
 
 
 @login_required
-@cache_page(CACHE_TTL)
 def show_overview_profile(request, pk=None):
     user = get_object_or_404(User, pk=pk)
     if user == request.user:
