@@ -34,7 +34,7 @@ class BinanceMarket:
     def __init__(self, platform):
         super().__init__()
         self.platform = platform
-        self.bases = ['USDT', 'BTC', 'ETH', 'BNB']
+        self.bases = ['USDT', 'BTC', 'ETH', 'BNB', 'BUSD']
     
     @classmethod
     def connect(cls, platform):

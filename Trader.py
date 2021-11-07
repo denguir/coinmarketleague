@@ -151,8 +151,12 @@ class Trader(object):
         for asset in assets:
             asset_perfs = {'asset': asset}
             prices = binance_market.get_price(asset, base)
-            asset_perfs['perf_last_24h'] = \
-                            round(100*(prices['lastPrice'] - prices['openPrice']) / prices['openPrice'], 2)
+            try:
+                asset_perfs['perf_last_24h'] = \
+                                round(100*(prices['lastPrice'] - prices['openPrice']) / prices['openPrice'], 2)
+            except ZeroDivisionError:
+                asset_perfs['perf_last_24h'] = None
+                
             try:
                 last_buy = AccountTrades.objects.filter(account__in=self.tas)\
                                                 .filter(symbol__startswith=asset)\
@@ -178,6 +182,7 @@ class Trader(object):
                 asset_perfs['perf_last_buy'] = round(100*(prices['lastPrice'] - buy_price) / buy_price, 2)
             except:
                 asset_perfs['perf_last_buy'] = None
+
             perfs = perfs.append(asset_perfs, ignore_index=True)
         return perfs
 

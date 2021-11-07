@@ -1,3 +1,6 @@
+from django.conf import settings
+from django.core.cache.backends.base import DEFAULT_TIMEOUT
+from django.views.decorators.cache import cache_page
 from Trader import Trader
 from traderboard.models import Profile, TradingAccount
 from django.contrib.auth.models import User
@@ -14,6 +17,9 @@ from django.db.models import F
 from verify_email.email_handler import send_verification_email
 from datetime import datetime, timedelta, timezone
 from traderboard.tasks import load_account_history
+
+
+CACHE_TTL = getattr(settings, 'CACHE_TTL', DEFAULT_TIMEOUT)
 
 
 def home_out(request):
@@ -60,6 +66,7 @@ def register(request):
 
 
 @login_required
+@cache_page(CACHE_TTL)
 def show_profile(request):
     user = request.user
     nacc_user = len(TradingAccount.objects.filter(user=user))
@@ -88,6 +95,7 @@ def show_profile(request):
 
 
 @login_required
+@cache_page(CACHE_TTL)
 def show_overview_profile(request, pk=None):
     user = get_object_or_404(User, pk=pk)
     if user == request.user:

@@ -191,6 +191,20 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+# Cache settings
+CACHES = {
+    'default': {
+        'BACKEND': 'django_bmemcached.memcached.BMemcached',
+        'LOCATION': os.environ.get('MEMCACHEDCLOUD_SERVERS').split(','),
+        'OPTIONS': {
+                    'username': os.environ.get('MEMCACHEDCLOUD_USERNAME'),
+                    'password': os.environ.get('MEMCACHEDCLOUD_PASSWORD')
+            }
+    }
+}
+# Cache time to live is 1 min
+CACHE_TTL = 1 * 60
+
 # ERD mdoel
 GRAPH_MODELS = {
     'all_applications': True,

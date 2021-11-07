@@ -71,6 +71,6 @@ def run():
         time.sleep(period)
         counter += period
 
-        if counter % 3600 == 0:
+        if counter % 600 == 0:
             binance_com_websocket_api_manager.print_summary()
             counter = 0
