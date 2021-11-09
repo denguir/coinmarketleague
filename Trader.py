@@ -46,14 +46,15 @@ class Trader(object):
         balances = {}
         for tc, market in self.tcs:
             tc_bal = tc.get_balances()
-            value_table = tc.get_value_table(tc_bal, market, base)
-            total += sum(value_table['value'])
-            tc_value = value_table.groupby('asset')['value'].sum().to_dict()
-            for asset, value in tc_value.items():
-                if asset in balances.keys():
-                    balances[asset] += value
-                else:
-                    balances[asset] = value
+            if not tc_bal.empty:
+                value_table = tc.get_value_table(tc_bal, market, base)
+                total += sum(value_table['value'])
+                tc_value = value_table.groupby('asset')['value'].sum().to_dict()
+                for asset, value in tc_value.items():
+                    if asset in balances.keys():
+                        balances[asset] += value
+                    else:
+                        balances[asset] = value
         if total > 0.0:
             balances = {asset: round(value*100/total, 2) for asset, value in balances.items() 
                         if round(value*100/total, 2) > 0.0} # reject dust coins
@@ -89,10 +90,11 @@ class Trader(object):
 
             snaps.loc[snaps['dep_wit'] > 0, 'pnl_rel'] = snaps.loc[snaps['dep_wit'] > 0, 'pnl'] / \
                 (snaps.loc[snaps['dep_wit'] > 0, 'balance'] - snaps.loc[snaps['dep_wit'] > 0, 'pnl'])
-
-            snaps['pnl_rel'] = 1 + snaps['pnl_rel']
+            
+            snaps['pnl_rel'] = snaps['pnl_rel'].replace([np.inf, -np.inf, np.nan], 0.0)
+            snaps['pnl_rel'] = 1.0 + snaps['pnl_rel']
             snaps['cum_pnl'] = snaps['pnl'].cumsum()
-            snaps['cum_pnl_rel'] = np.around(100 * (snaps['pnl_rel'].cumprod() - 1), 2)
+            snaps['cum_pnl_rel'] = np.around(100 * (snaps['pnl_rel'].cumprod() - 1.0), 2)
 
         else:
             snaps = pd.DataFrame(columns=['created_at', 'pnl', 'balance', 'balance_open', 
@@ -202,9 +204,9 @@ class Trader(object):
         # compute BTC stats on same time window
         if not stats.empty:
             btc_stats = self.get_btc_stats(stats.created_at.min().to_pydatetime(), 
-                                        stats.created_at.max().to_pydatetime(),
-                                        freq='1d', 
-                                        base=base)
+                                           stats.created_at.max().to_pydatetime(),
+                                           freq='1d', 
+                                           base=base)
             # get PnL aggregated history
             cum_pnl_hist = {'labels': stats['created_at'].apply(
                                         lambda x: x.to_pydatetime().strftime('%d %b')).tolist(),

@@ -78,12 +78,12 @@ def update_profile(user, markets, now):
 
     # Get pnL data wrt to 24h record
     try:
-        date_from = now - timedelta(days=1, hours=1)
+        date_from = now - timedelta(days=1)
         date_from = date_from.replace(microsecond=0, second=0, minute=0)
-
         stats = trader.get_stats(date_from, now, base='USDT')
         first_date = stats.iloc[0]['created_at'].to_pydatetime()
-        if abs(date_from - first_date) < timedelta(hours=1):
+        last_date = stats.iloc[-1]['created_at'].to_pydatetime()
+        if last_date - first_date > timedelta(hours=23):
             daily_pnl = Decimal(stats.iloc[-1]['cum_pnl_rel'])
         else:
             daily_pnl = None
@@ -93,12 +93,12 @@ def update_profile(user, markets, now):
     
     # Get pnL data wrt to 7d record
     try:
-        date_from = now - timedelta(days=7, hours=1)
+        date_from = now - timedelta(days=7)
         date_from = date_from.replace(microsecond=0, second=0, minute=0, hour=0)
-
         stats = trader.get_stats(date_from, now, base='USDT')
         first_date = stats.iloc[0]['created_at'].to_pydatetime()
-        if abs(date_from - first_date) < timedelta(days=1):
+        last_date = stats.iloc[-1]['created_at'].to_pydatetime()
+        if last_date - first_date > timedelta(days=6, hours=12):
             weekly_pnl = Decimal(stats.iloc[-1]['cum_pnl_rel'])
         else:
             weekly_pnl = None
@@ -108,12 +108,12 @@ def update_profile(user, markets, now):
 
     # Get pnL data wrt to 1m record
     try:
-        date_from = now - timedelta(days=30, hours=1)
+        date_from = now - timedelta(days=30)
         date_from = date_from.replace(microsecond=0, second=0, minute=0, hour=0)
 
         stats = trader.get_stats(date_from, now, base='USDT')
         first_date = stats.iloc[0]['created_at'].to_pydatetime()
-        if abs(date_from - first_date) < timedelta(days=2):
+        if last_date - first_date > timedelta(days=29, hours=12):
             monthly_pnl = Decimal(stats.iloc[-1]['cum_pnl_rel'])
         else:
             monthly_pnl = None
