@@ -29,6 +29,7 @@ def home_out(request):
                                                  F('weekly_pnl').desc(nulls_last=True),
                                                  F('monthly_pnl').desc(nulls_last=True),   
                                                  ), start=1)
+
     return render(request, 'index.html', {'traders': traders})
 
 
@@ -66,6 +67,7 @@ def register(request):
 
 
 @login_required
+@cache_control(private=True, max_age=CACHE_TTL)
 def show_profile(request):
     user = request.user
     nacc_user = len(TradingAccount.objects.filter(user=user))
@@ -94,6 +96,7 @@ def show_profile(request):
 
 
 @login_required
+@cache_control(private=True, max_age=CACHE_TTL)
 def show_overview_profile(request, pk=None):
     user = get_object_or_404(User, pk=pk)
     if user == request.user:
