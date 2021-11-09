@@ -78,7 +78,7 @@ def update_profile(user, markets, now):
 
     # Get pnL data wrt to 24h record
     try:
-        date_from = now - timedelta(days=1)
+        date_from = now - timedelta(days=1, hours=1)
         date_from = date_from.replace(microsecond=0, second=0, minute=0)
 
         stats = trader.get_stats(date_from, now, base='USDT')
@@ -93,7 +93,7 @@ def update_profile(user, markets, now):
     
     # Get pnL data wrt to 7d record
     try:
-        date_from = now - timedelta(days=7)
+        date_from = now - timedelta(days=7, hours=1)
         date_from = date_from.replace(microsecond=0, second=0, minute=0, hour=0)
 
         stats = trader.get_stats(date_from, now, base='USDT')
@@ -108,7 +108,7 @@ def update_profile(user, markets, now):
 
     # Get pnL data wrt to 1m record
     try:
-        date_from = now - timedelta(days=30)
+        date_from = now - timedelta(days=30, hours=1)
         date_from = date_from.replace(microsecond=0, second=0, minute=0, hour=0)
 
         stats = trader.get_stats(date_from, now, base='USDT')

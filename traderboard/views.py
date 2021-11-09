@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.core.cache.backends.base import DEFAULT_TIMEOUT
-from django.views.decorators.cache import cache_page
+from django.views.decorators.cache import cache_page, cache_control
 from Trader import Trader
 from traderboard.models import Profile, TradingAccount
 from django.contrib.auth.models import User
@@ -66,6 +66,7 @@ def register(request):
 
 
 @login_required
+@cache_control(private=True, max_age=CACHE_TTL)
 def show_profile(request):
     user = request.user
     nacc_user = len(TradingAccount.objects.filter(user=user))
@@ -94,6 +95,7 @@ def show_profile(request):
 
 
 @login_required
+@cache_control(private=True, max_age=CACHE_TTL)
 def show_overview_profile(request, pk=None):
     user = get_object_or_404(User, pk=pk)
     if user == request.user:

@@ -82,40 +82,45 @@ class Trader(object):
         snaps = self.get_snapshot_history(date_from, date_to, base)
         if not snaps.empty:
             snaps['balance_open'] = snaps['balance'].shift(1)
-            snaps['pnl_rel'] = snaps['pnl'] / snaps['balance_open']
+            snaps['dep_wit'] = snaps['balance'] - snaps['balance_open'] - snaps['pnl']
+
+            snaps.loc[snaps['dep_wit'] <= 0, 'pnl_rel'] = snaps.loc[snaps['dep_wit'] <= 0, 'pnl'] / \
+                snaps.loc[snaps['dep_wit'] <= 0, 'balance_open']
+
+            snaps.loc[snaps['dep_wit'] > 0, 'pnl_rel'] = snaps.loc[snaps['dep_wit'] > 0, 'pnl'] / \
+                (snaps.loc[snaps['dep_wit'] > 0, 'balance'] - snaps.loc[snaps['dep_wit'] > 0, 'pnl'])
+
+            snaps['pnl_rel'] = 1 + snaps['pnl_rel']
             snaps['cum_pnl'] = snaps['pnl'].cumsum()
-            snaps['cum_pnl_rel'] = np.around(100 * snaps['cum_pnl'] / snaps.iloc[0].balance, 2)
+            snaps['cum_pnl_rel'] = np.around(100 * (snaps['pnl_rel'].cumprod() - 1), 2)
+
         else:
-            snaps = pd.DataFrame(columns=['created_at', 'pnl', 'balance', 
-                                          'balance_open', 'pnl_rel',
-                                          'cum_pnl', 'cum_pnl_rel'])
+            snaps = pd.DataFrame(columns=['created_at', 'pnl', 'balance', 'balance_open', 
+                                          'dep_wit', 'pnl_rel', 'cum_pnl', 'cum_pnl_rel'])
         return snaps
 
     def get_aggregated_stats(self, date_from, date_to, freq, base='USDT'):
         '''Aggregate stats by freq, day: D, hour: H,
            see: https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases
         '''
-        snaps = self.get_snapshot_history(date_from, date_to, base)
-        if not snaps.empty:
-            snaps['balance_open'] = snaps['balance'].shift(1)
-            snaps = snaps.groupby(pd.Grouper(key='created_at', freq=freq))\
+        stats = self.get_stats(date_from, date_to, base)
+        if not stats.empty:
+            stats = stats.groupby(pd.Grouper(key='created_at', freq=freq))\
                          .agg({'pnl': 'sum',
+                               'pnl_rel': 'prod',
                                'balance': 'last',
-                               'balance_open': 'first'
+                               'balance_open': 'first',
                             })\
                         .reset_index()\
                         .sort_values('created_at')
-            # remove nan introduced by groupby
-            snaps = snaps[snaps['balance'].notna()]
-            snaps['balance_open'] = snaps['balance_open'].fillna(snaps['balance'])
-            snaps['pnl_rel'] = snaps['pnl'] / snaps['balance_open']
-            snaps['cum_pnl'] = snaps['pnl'].cumsum()
-            snaps['cum_pnl_rel'] = np.around(100 * snaps['cum_pnl'] / snaps.iloc[0].balance_open, 2)
+            
+            stats['cum_pnl'] = stats['pnl'].cumsum()
+            stats['cum_pnl_rel'] = np.around(100 * (stats['pnl_rel'].cumprod() - 1), 2)
         else:
-            snaps = pd.DataFrame(columns=['created_at', 'pnl', 'balance', 
-                                          'balance_open', 'pnl_rel',
-                                          'cum_pnl', 'cum_pnl_rel'])
-        return snaps
+            stats = pd.DataFrame(columns=['created_at', 'pnl', 'balance', 'balance_open', 
+                                          'pnl_rel', 'cum_pnl', 'cum_pnl_rel'])
+        return stats
+
 
     def get_btc_stats(self, date_from, date_to, freq, base='USDT'):
         # hard coded to binance market
